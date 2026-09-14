@@ -80,17 +80,11 @@ app.use("/api/cron", cronRoutes);
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
-// The frontend is hosted on Vercel (which already cross-origins its API
-// calls here — see client/.env.production's VITE_API_URL), not served from
-// this Render instance. Render's free-plan bandwidth was mostly being
-// spent re-serving the same JS/CSS bundle on every page load whenever
-// someone used this Render URL directly (old bookmarks, printed guard QR
-// codes, etc.) instead of the Vercel one — redirecting every non-API route
-// there means any of those old links keep working, permanently, without
-// relying on anyone remembering to switch, while this server goes back to
-// only ever serving lightweight API JSON.
-const FRONTEND_ORIGIN = "https://heaven-heights-2mbg.vercel.app";
-app.get(/^(?!\/api).*/, (req, res) => res.redirect(302, `${FRONTEND_ORIGIN}${req.originalUrl}`));
+// This deployment only ever serves /api/* — the frontend is a separate
+// Vercel project (see frontend/.env.production's VITE_API_URL). Anything
+// else hitting this domain directly is someone checking it's alive, not a
+// browser navigation to redirect anywhere.
+app.get(/^(?!\/api).*/, (req, res) => res.json({ service: "heaven-heights-backend", status: "ok" }));
 
 app.use((err, req, res, next) => {
   console.error(err);
