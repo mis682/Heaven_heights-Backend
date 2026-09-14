@@ -175,4 +175,5 @@ module.exports = {
   primaryCloudinaryAuth,
   housekeepingCloudinaryAuth,
   CLOUDINARY_ACCOUNTS,
+  getMainUploadAuth,
 };

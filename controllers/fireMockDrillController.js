@@ -1,6 +1,5 @@
 const { v2: cloudinary } = require("cloudinary");
 const FireMockDrill = require("../models/FireMockDrill");
-const { fileToUrl } = require("../middleware/upload");
 const { notifyWebhook } = require("../utils/webhook");
 const { sendAlertEmail } = require("../utils/mailer");
 const { sendTelegramMessage } = require("../utils/telegram");
@@ -38,16 +37,19 @@ function parseVideoUrls(raw) {
   }
 }
 
+// Panel photo, report and checklist attachments upload straight from the
+// browser to Cloudinary (see api/media/upload-signature), same as videos
+// already did — this just receives the resulting URLs as JSON.
 exports.create = async (req, res) => {
-  const { projectName, date, videoUrls } = req.body;
+  const { projectName, date, videoUrls, panelPhoto: panelPhotoUrl, reportAttachment: reportAttachmentUrl } = req.body;
   if (!projectName || !date) {
     return res.status(400).json({ message: "Project and date are required" });
   }
 
-  const panelPhoto = req.files?.panelPhoto?.[0] ? fileToUrl(req.files.panelPhoto[0]) : "";
+  const panelPhoto = panelPhotoUrl || "";
   const videos = parseVideoUrls(videoUrls) || [];
-  const reportAttachment = req.files?.reportAttachment?.[0] ? fileToUrl(req.files.reportAttachment[0]) : "";
-  const checklistAttachments = (req.files?.checklistAttachments || []).map(fileToUrl);
+  const reportAttachment = reportAttachmentUrl || "";
+  const checklistAttachments = Array.isArray(req.body.checklistAttachments) ? req.body.checklistAttachments : [];
 
   const drill = await FireMockDrill.create({ projectName, date, panelPhoto, videos, reportAttachment, checklistAttachments });
 
@@ -131,9 +133,9 @@ exports.update = async (req, res) => {
   const body = {};
   if (req.body.projectName) body.projectName = req.body.projectName;
   if (req.body.date) body.date = req.body.date;
-  if (req.files?.panelPhoto?.[0]) body.panelPhoto = fileToUrl(req.files.panelPhoto[0]);
-  if (req.files?.reportAttachment?.[0]) body.reportAttachment = fileToUrl(req.files.reportAttachment[0]);
-  if (req.files?.checklistAttachments?.length) body.checklistAttachments = req.files.checklistAttachments.map(fileToUrl);
+  if (req.body.panelPhoto) body.panelPhoto = req.body.panelPhoto;
+  if (req.body.reportAttachment) body.reportAttachment = req.body.reportAttachment;
+  if (Array.isArray(req.body.checklistAttachments)) body.checklistAttachments = req.body.checklistAttachments;
 
   // The client sends the full desired list of video URLs each time (kept
   // existing ones + newly direct-uploaded ones), since videos never pass

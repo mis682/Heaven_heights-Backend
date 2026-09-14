@@ -1,39 +1,25 @@
 const ReserveClubSubmission = require("../models/ReserveClubSubmission");
-const { fileToUrl } = require("../middleware/upload");
 const { notifyWebhook } = require("../utils/webhook");
 const { buildIstDateRangeFilter } = require("../utils/istDateRange");
 const { getFormByNumber } = require("../constants/reserveClubForms");
 
+// Photos upload straight from the browser to Cloudinary (see
+// api/media/upload-signature) before this ever runs — this just receives
+// the resulting URLs as plain JSON, not the files themselves.
 exports.createSubmission = async (req, res) => {
   const { submittedBy } = req.body;
   const form = getFormByNumber(req.body.formNumber);
   if (!form) return res.status(400).json({ message: "Invalid form number" });
   if (!submittedBy) return res.status(400).json({ message: "submittedBy is required" });
 
-  let meta = [];
-  try {
-    meta = req.body.meta ? JSON.parse(req.body.meta) : [];
-  } catch {
-    return res.status(400).json({ message: "Invalid meta payload" });
-  }
-
-  let textAnswers = [];
-  try {
-    textAnswers = req.body.textAnswers ? JSON.parse(req.body.textAnswers) : [];
-  } catch {
-    return res.status(400).json({ message: "Invalid textAnswers payload" });
-  }
-
-  const files = req.files || [];
-  const photos = files.map((file, idx) => {
-    const info = meta[idx] || {};
-    return {
-      checkpointLabel: info.checkpointLabel,
-      photoUrl: fileToUrl(file),
-      capturedAt: info.capturedAt ? new Date(info.capturedAt) : new Date(),
-      geoLocation: info.geoLocation || {},
-    };
-  });
+  const textAnswers = Array.isArray(req.body.textAnswers) ? req.body.textAnswers : [];
+  const rawPhotos = Array.isArray(req.body.photos) ? req.body.photos : [];
+  const photos = rawPhotos.map((p) => ({
+    checkpointLabel: p.checkpointLabel,
+    photoUrl: p.photoUrl,
+    capturedAt: p.capturedAt ? new Date(p.capturedAt) : new Date(),
+    geoLocation: p.geoLocation || {},
+  }));
 
   const submission = await ReserveClubSubmission.create({
     formNumber: form.formNumber,

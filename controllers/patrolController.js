@@ -2,33 +2,25 @@ const mongoose = require("mongoose");
 const PatrolSubmission = require("../models/PatrolSubmission");
 const Project = require("../models/Project");
 const Checkpoint = require("../models/Checkpoint");
-const { fileToUrl } = require("../middleware/upload");
 const { notifyWebhook } = require("../utils/webhook");
 const { buildIstDateRangeFilter } = require("../utils/istDateRange");
 
+// Photos upload straight from the browser to Cloudinary (see
+// api/media/upload-signature) before this ever runs — this just receives
+// the resulting URLs as plain JSON, not the files themselves.
 exports.createSubmission = async (req, res) => {
   const { guardName, projectId, projectName } = req.body;
   if (!guardName || !projectId || !projectName) {
     return res.status(400).json({ message: "guardName, projectId and projectName are required" });
   }
 
-  let meta = [];
-  try {
-    meta = req.body.meta ? JSON.parse(req.body.meta) : [];
-  } catch {
-    return res.status(400).json({ message: "Invalid meta payload" });
-  }
-
-  const files = req.files || [];
-  const photos = files.map((file, idx) => {
-    const info = meta[idx] || {};
-    return {
-      checkpointId: info.checkpointId,
-      photoUrl: fileToUrl(file),
-      capturedAt: info.capturedAt ? new Date(info.capturedAt) : new Date(),
-      geoLocation: info.geoLocation || {},
-    };
-  });
+  const rawPhotos = Array.isArray(req.body.photos) ? req.body.photos : [];
+  const photos = rawPhotos.map((p) => ({
+    checkpointId: p.checkpointId,
+    photoUrl: p.photoUrl,
+    capturedAt: p.capturedAt ? new Date(p.capturedAt) : new Date(),
+    geoLocation: p.geoLocation || {},
+  }));
 
   const submission = await PatrolSubmission.create({
     guardName,

@@ -2,6 +2,38 @@ const express = require("express");
 const router = express.Router();
 const asyncHandler = require("../utils/asyncHandler");
 const { fetchDriveFile } = require("../utils/googleDrive");
+const { cloudinary, getMainUploadAuth, housekeepingCloudinaryAuth } = require("../middleware/upload");
+
+const IMAGE_TRANSFORMATION = "w_1600,h_1600,c_limit,q_auto:good,f_auto";
+const FOLDERS = { main: "heaven-heights", housekeeping: "heaven-heights-housekeeping" };
+
+// Hands out a short-lived signed Cloudinary upload authorization instead of
+// relaying the file itself — the browser uploads straight to Cloudinary
+// with this, so a serverless function's execution-time limit is never in
+// the path of a large or slow multi-photo submission. `account` picks which
+// Cloudinary credentials to sign with (mirrors upload.js's failover logic
+// for "main" so direct uploads land on whichever tier is currently active).
+router.post(
+  "/upload-signature",
+  asyncHandler(async (req, res) => {
+    const { account = "main", resourceType = "image" } = req.body;
+    const auth = account === "housekeeping" ? housekeepingCloudinaryAuth : await getMainUploadAuth();
+    const folder = FOLDERS[account] || FOLDERS.main;
+    const timestamp = Math.round(Date.now() / 1000);
+    const paramsToSign = { timestamp, folder };
+    if (resourceType === "image") paramsToSign.transformation = IMAGE_TRANSFORMATION;
+
+    const signature = cloudinary.utils.api_sign_request(paramsToSign, auth.api_secret);
+    res.json({
+      signature,
+      timestamp,
+      apiKey: auth.api_key,
+      cloudName: auth.cloud_name,
+      folder,
+      transformation: paramsToSign.transformation || null,
+    });
+  })
+);
 
 // Proxies an archived file's bytes from Google Drive — the file itself
 // stays private on Drive (this Workspace blocks public link-sharing), this
