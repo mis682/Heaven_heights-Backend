@@ -12,9 +12,24 @@ const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
 // working exactly the same either way — only the URL stored in Mongo
 // changes; the field itself is untouched.
 const ARCHIVE_AFTER_DAYS = 4;
-// Cap per model per run so one tick never runs too long — a large backlog
-// just drains a bit more each day.
-const BATCH_LIMIT = 50;
+// A doc-count cap alone isn't a reliable time bound — one PatrolSubmission
+// can hold 20 photos, another model's doc just one — so this now also
+// tracks a wall-clock budget (see TIME_BUDGET_MS) and stops early once
+// spent. BATCH_LIMIT just keeps a single Mongo query from fetching an
+// unbounded backlog before that check even gets a chance to run.
+const BATCH_LIMIT = 15;
+
+// This runs inside a Vercel Cron serverless invocation (60s ceiling, shared
+// with the other daily-cron tasks that run after this one — see
+// routes/cron.js), not a long-lived process, so it has to stop itself well
+// before that ceiling rather than run until killed mid-file. Leaves a
+// backlog to drain a bit more each day rather than trying to force it all
+// through in one run.
+const TIME_BUDGET_MS = 35000;
+
+function budgetExceeded(startedAt) {
+  return Date.now() - startedAt > TIME_BUDGET_MS;
+}
 
 function parseCloudinaryUrl(url) {
   const match = url.match(/res\.cloudinary\.com\/([^/]+)\/(image|video|raw)\/upload\/v\d+\/([^?]+)/);
@@ -60,15 +75,18 @@ async function archiveOneUrl(url) {
   return newUrl;
 }
 
-async function archivePatrolSubmissions(cutoff) {
+async function archivePatrolSubmissions(cutoff, startedAt) {
   const docs = await PatrolSubmission.find({
     submittedAt: { $lt: cutoff },
     "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
   }).limit(BATCH_LIMIT);
 
+  let processed = 0;
   for (const doc of docs) {
+    if (budgetExceeded(startedAt)) break;
     for (const photo of doc.photos) {
       if (!isCloudinaryUrl(photo.photoUrl)) continue;
+      if (budgetExceeded(startedAt)) break;
       try {
         photo.photoUrl = await archiveOneUrl(photo.photoUrl);
       } catch (err) {
@@ -76,53 +94,63 @@ async function archivePatrolSubmissions(cutoff) {
       }
     }
     await doc.save();
+    processed++;
   }
-  return docs.length;
+  return processed;
 }
 
-async function archiveNightGuardSubmissions(cutoff) {
+async function archiveNightGuardSubmissions(cutoff, startedAt) {
   const docs = await NightGuardSubmission.find({
     submittedAt: { $lt: cutoff },
     guardPhotoUrl: { $regex: "res\\.cloudinary\\.com" },
   }).limit(BATCH_LIMIT);
 
+  let processed = 0;
   for (const doc of docs) {
+    if (budgetExceeded(startedAt)) break;
     try {
       doc.guardPhotoUrl = await archiveOneUrl(doc.guardPhotoUrl);
       await doc.save();
     } catch (err) {
       console.error("[archive] NightGuardSubmission failed", doc._id.toString(), err.message);
     }
+    processed++;
   }
-  return docs.length;
+  return processed;
 }
 
-async function archiveAttendanceScans(cutoff) {
+async function archiveAttendanceScans(cutoff, startedAt) {
   const docs = await AttendanceScan.find({
     timestamp: { $lt: cutoff },
     photo: { $regex: "res\\.cloudinary\\.com" },
   }).limit(BATCH_LIMIT);
 
+  let processed = 0;
   for (const doc of docs) {
+    if (budgetExceeded(startedAt)) break;
     try {
       doc.photo = await archiveOneUrl(doc.photo);
       await doc.save();
     } catch (err) {
       console.error("[archive] AttendanceScan failed", doc._id.toString(), err.message);
     }
+    processed++;
   }
-  return docs.length;
+  return processed;
 }
 
-async function archiveGCHousekeepingSubmissions(cutoff) {
+async function archiveGCHousekeepingSubmissions(cutoff, startedAt) {
   const docs = await GCHousekeepingSubmission.find({
     submittedAt: { $lt: cutoff },
     "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
   }).limit(BATCH_LIMIT);
 
+  let processed = 0;
   for (const doc of docs) {
+    if (budgetExceeded(startedAt)) break;
     for (const photo of doc.photos) {
       if (!isCloudinaryUrl(photo.photoUrl)) continue;
+      if (budgetExceeded(startedAt)) break;
       try {
         photo.photoUrl = await archiveOneUrl(photo.photoUrl);
       } catch (err) {
@@ -130,17 +158,20 @@ async function archiveGCHousekeepingSubmissions(cutoff) {
       }
     }
     await doc.save();
+    processed++;
   }
-  return docs.length;
+  return processed;
 }
 
-async function archiveFireMockDrills(cutoff) {
+async function archiveFireMockDrills(cutoff, startedAt) {
   // date is a "YYYY-MM-DD" string, not a real Date field, so compare as
   // strings — works fine since ISO-formatted dates sort lexicographically.
   const cutoffKey = cutoff.toISOString().slice(0, 10);
   const docs = await FireMockDrill.find({ date: { $lt: cutoffKey } }).limit(BATCH_LIMIT);
 
+  let processed = 0;
   for (const doc of docs) {
+    if (budgetExceeded(startedAt)) break;
     try {
       if (isCloudinaryUrl(doc.panelPhoto)) doc.panelPhoto = await archiveOneUrl(doc.panelPhoto);
       if (isCloudinaryUrl(doc.reportAttachment)) doc.reportAttachment = await archiveOneUrl(doc.reportAttachment);
@@ -156,21 +187,32 @@ async function archiveFireMockDrills(cutoff) {
     } catch (err) {
       console.error("[archive] FireMockDrill failed", doc._id.toString(), err.message);
     }
+    processed++;
   }
-  return docs.length;
+  return processed;
 }
 
 async function archiveOldMedia() {
   if (!isConfigured()) return;
   const cutoff = new Date(Date.now() - ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000);
+  const startedAt = Date.now();
 
-  const counts = {
-    patrol: await archivePatrolSubmissions(cutoff),
-    nightGuard: await archiveNightGuardSubmissions(cutoff),
-    attendance: await archiveAttendanceScans(cutoff),
-    fireMockDrill: await archiveFireMockDrills(cutoff),
-    gcHousekeeping: await archiveGCHousekeepingSubmissions(cutoff),
-  };
+  const counts = {};
+  const steps = [
+    ["patrol", archivePatrolSubmissions],
+    ["nightGuard", archiveNightGuardSubmissions],
+    ["attendance", archiveAttendanceScans],
+    ["fireMockDrill", archiveFireMockDrills],
+    ["gcHousekeeping", archiveGCHousekeepingSubmissions],
+  ];
+  for (const [key, fn] of steps) {
+    if (budgetExceeded(startedAt)) {
+      counts[key] = 0;
+      continue;
+    }
+    counts[key] = await fn(cutoff, startedAt);
+  }
+
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   if (total > 0) console.log("[archive] processed", counts);
 }

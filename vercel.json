@@ -1,4 +1,7 @@
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
-  "crons": [{ "path": "/api/cron/daily-tasks", "schedule": "30 3 * * *" }]
+  "crons": [{ "path": "/api/cron/daily-tasks", "schedule": "30 3 * * *" }],
+  "functions": {
+    "api/index.js": { "maxDuration": 60 }
+  }
 }
