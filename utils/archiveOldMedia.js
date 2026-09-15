@@ -11,7 +11,7 @@ const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
 // no dependency on the Drive account being reachable). The app keeps
 // working exactly the same either way — only the URL stored in Mongo
 // changes; the field itself is untouched.
-const ARCHIVE_AFTER_DAYS = 4;
+const ARCHIVE_AFTER_DAYS = 2;
 // A doc-count cap alone isn't a reliable time bound — one PatrolSubmission
 // can hold 20 photos, another model's doc just one — so this now also
 // tracks a wall-clock budget (see TIME_BUDGET_MS) and stops early once
