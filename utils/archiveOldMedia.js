@@ -24,13 +24,16 @@ const BATCH_LIMIT = 40;
 // running several at once overlaps those waits instead of paying for them
 // one at a time, multiplying how much fits in the time budget below.
 const CONCURRENCY = 6;
-// This runs inside a Vercel Cron serverless invocation (60s ceiling, shared
-// with the other daily-cron tasks that run after this one — see
+// This runs inside a Vercel serverless invocation (60s ceiling — see
 // routes/cron.js), not a long-lived process, so it has to stop itself well
 // before that ceiling rather than run until killed mid-file. Leaves a
-// backlog to drain a bit more each day rather than trying to force it all
-// through in one run.
-const TIME_BUDGET_MS = 35000;
+// backlog to drain a bit more each run rather than trying to force it all
+// through at once. Kept with real margin below 60s: even in the worst
+// case, a task already in flight when the budget check fires can still
+// run up to its own network timeouts (see archiveOneUrl) before this
+// function actually returns — 30s budget + ~25s worst-case single-file
+// timeout chain stays safely under the 60s ceiling.
+const TIME_BUDGET_MS = 30000;
 
 function budgetExceeded(startedAt) {
   return Date.now() - startedAt > TIME_BUDGET_MS;
@@ -59,6 +62,19 @@ function isCloudinaryUrl(url) {
   return Boolean(url) && url.includes("res.cloudinary.com");
 }
 
+// A stalled network call used to be able to hang indefinitely — inside the
+// concurrency pool below, that meant one stuck file blocked its whole
+// worker (and eventually the whole batch) well past TIME_BUDGET_MS, all
+// the way to Vercel's hard 60s function timeout, since the budget check
+// only runs *between* tasks, not during one. Racing every network call
+// against a timeout is what actually makes that budget check meaningful.
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
+}
+
 // Downloads one Cloudinary file, re-uploads it to Drive, deletes the
 // Cloudinary copy, and returns the new URL. Best-effort per file — if this
 // throws, the caller should leave that field untouched and try again next
@@ -67,16 +83,25 @@ async function archiveOneUrl(url) {
   const parsed = parseCloudinaryUrl(url);
   if (!parsed) return url;
 
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  let res;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new Error(`Download failed (${res.status}): ${url}`);
   const buffer = Buffer.from(await res.arrayBuffer());
   const mimeType = res.headers.get("content-type") || "application/octet-stream";
   const filename = parsed.publicId.split("/").pop();
 
-  const { url: newUrl } = await uploadToDrive({ buffer, filename, mimeType });
-  await cloudinary.uploader
-    .destroy(parsed.publicId, { resource_type: parsed.resourceType, ...authForCloudName(parsed.cloudName) })
-    .catch(() => {});
+  const { url: newUrl } = await withTimeout(uploadToDrive({ buffer, filename, mimeType }), 12000, "Drive upload");
+  await withTimeout(
+    cloudinary.uploader.destroy(parsed.publicId, { resource_type: parsed.resourceType, ...authForCloudName(parsed.cloudName) }),
+    5000,
+    "Cloudinary destroy"
+  ).catch(() => {});
   return newUrl;
 }
 
