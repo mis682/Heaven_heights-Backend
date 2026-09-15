@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const asyncHandler = require("../utils/asyncHandler");
 const { fetchDriveFile } = require("../utils/googleDrive");
-const { cloudinary, getMainUploadAuth, housekeepingCloudinaryAuth } = require("../middleware/upload");
+const { cloudinary, getMainUploadAuth } = require("../middleware/upload");
 
 const IMAGE_TRANSFORMATION = "w_1600,h_1600,c_limit,q_auto:good,f_auto";
 const FOLDERS = { main: "heaven-heights", housekeeping: "heaven-heights-housekeeping" };
@@ -10,14 +10,16 @@ const FOLDERS = { main: "heaven-heights", housekeeping: "heaven-heights-housekee
 // Hands out a short-lived signed Cloudinary upload authorization instead of
 // relaying the file itself — the browser uploads straight to Cloudinary
 // with this, so a serverless function's execution-time limit is never in
-// the path of a large or slow multi-photo submission. `account` picks which
-// Cloudinary credentials to sign with (mirrors upload.js's failover logic
-// for "main" so direct uploads land on whichever tier is currently active).
+// the path of a large or slow multi-photo submission. `account` only picks
+// the upload *folder* now — housekeeping/hospitality forms share the same
+// failover-aware credential pool as everything else (getMainUploadAuth),
+// so a full Housekeeping-tier account doesn't strand them with nowhere to
+// go while Fallback 3/4/5 sit unused.
 router.post(
   "/upload-signature",
   asyncHandler(async (req, res) => {
     const { account = "main", resourceType = "image" } = req.body;
-    const auth = account === "housekeeping" ? housekeepingCloudinaryAuth : await getMainUploadAuth();
+    const auth = await getMainUploadAuth();
     const folder = FOLDERS[account] || FOLDERS.main;
     const timestamp = Math.round(Date.now() / 1000);
     const paramsToSign = { timestamp, folder };

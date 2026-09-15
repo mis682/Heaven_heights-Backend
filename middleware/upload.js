@@ -134,11 +134,25 @@ const uploadMixed = multer({
   limits: { fileSize: 200 * 1024 * 1024 },
 });
 
+// Housekeeping/Hospitality uploads (GC Housekeeping, GC Club, Reserve Club,
+// Regal Garden Club) used to always go to the dedicated Housekeeping
+// account with no failover of its own — meaning once that one account
+// filled up, those modules' uploads would just start failing even while
+// Fallback 3/4/5 sat completely unused, since only "main" uploads could
+// reach them. Sharing getMainUploadAuth's failover state here folds
+// Housekeeping/Hospitality into the same 5-account pool as everyone else.
 class HousekeepingCloudinaryStorage {
-  _handleFile(req, file, cb) {
+  async _handleFile(req, file, cb) {
+    let auth;
+    try {
+      auth = await getMainUploadAuth();
+    } catch (err) {
+      return cb(err);
+    }
+    file.cloudinaryAuth = auth; // remembered for _removeFile below
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        ...housekeepingCloudinaryAuth,
+        ...auth,
         folder: "heaven-heights-housekeeping",
         resource_type: "image",
         transformation: [{ width: 1600, height: 1600, crop: "limit", quality: "auto:good", fetch_format: "auto" }],
@@ -152,7 +166,7 @@ class HousekeepingCloudinaryStorage {
   }
 
   _removeFile(req, file, cb) {
-    cloudinary.uploader.destroy(file.filename, housekeepingCloudinaryAuth, () => cb());
+    cloudinary.uploader.destroy(file.filename, file.cloudinaryAuth || housekeepingCloudinaryAuth, () => cb());
   }
 }
 
