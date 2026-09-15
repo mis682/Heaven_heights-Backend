@@ -5,6 +5,9 @@ const NightGuardSubmission = require("../models/NightGuardSubmission");
 const AttendanceScan = require("../models/AttendanceScan");
 const FireMockDrill = require("../models/FireMockDrill");
 const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
+const GCClubSubmission = require("../models/GCClubSubmission");
+const ReserveClubSubmission = require("../models/ReserveClubSubmission");
+const RegalGardenClubSubmission = require("../models/RegalGardenClubSubmission");
 
 // Files older than this move from Cloudinary to Google Drive to free up
 // Cloudinary storage, while everything recent stays on Cloudinary (fast CDN,
@@ -12,13 +15,15 @@ const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
 // working exactly the same either way — only the URL stored in Mongo
 // changes; the field itself is untouched.
 const ARCHIVE_AFTER_DAYS = 2;
-// A doc-count cap alone isn't a reliable time bound — one PatrolSubmission
-// can hold 20 photos, another model's doc just one — so this now also
-// tracks a wall-clock budget (see TIME_BUDGET_MS) and stops early once
-// spent. BATCH_LIMIT just keeps a single Mongo query from fetching an
-// unbounded backlog before that check even gets a chance to run.
-const BATCH_LIMIT = 15;
-
+// A single Mongo query per model, so one huge backlog can't fetch
+// unbounded documents before the time/concurrency limits below even get a
+// chance to run.
+const BATCH_LIMIT = 40;
+// Each archived file costs 2 network round trips (Cloudinary download +
+// Drive upload) that spend almost all their time waiting on I/O, not CPU —
+// running several at once overlaps those waits instead of paying for them
+// one at a time, multiplying how much fits in the time budget below.
+const CONCURRENCY = 6;
 // This runs inside a Vercel Cron serverless invocation (60s ceiling, shared
 // with the other daily-cron tasks that run after this one — see
 // routes/cron.js), not a long-lived process, so it has to stop itself well
@@ -75,146 +80,176 @@ async function archiveOneUrl(url) {
   return newUrl;
 }
 
-async function archivePatrolSubmissions(cutoff, startedAt) {
-  const docs = await PatrolSubmission.find({
-    submittedAt: { $lt: cutoff },
-    "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
-  }).limit(BATCH_LIMIT);
+// Every model below builds a flat list of { label, docId, touchedDocs, run }
+// tasks rather than archiving as it goes — that's what lets archiveOldMedia
+// interleave them round-robin (see below) so one large model's backlog
+// can't starve the others out of the shared time budget, and what lets a
+// concurrency pool work each one down.
 
-  let processed = 0;
+function photosArrayTasks(docs, label, touchedDocs) {
+  const tasks = [];
   for (const doc of docs) {
-    if (budgetExceeded(startedAt)) break;
     for (const photo of doc.photos) {
       if (!isCloudinaryUrl(photo.photoUrl)) continue;
-      if (budgetExceeded(startedAt)) break;
+      tasks.push({
+        label,
+        docId: doc._id.toString(),
+        run: async () => {
+          photo.photoUrl = await archiveOneUrl(photo.photoUrl);
+          touchedDocs.add(doc);
+        },
+      });
+    }
+  }
+  return tasks;
+}
+
+function singleFieldTasks(docs, fieldName, label, touchedDocs) {
+  const tasks = [];
+  for (const doc of docs) {
+    if (!isCloudinaryUrl(doc[fieldName])) continue;
+    tasks.push({
+      label,
+      docId: doc._id.toString(),
+      run: async () => {
+        doc[fieldName] = await archiveOneUrl(doc[fieldName]);
+        touchedDocs.add(doc);
+      },
+    });
+  }
+  return tasks;
+}
+
+function fireMockDrillTasks(docs, touchedDocs) {
+  const tasks = [];
+  for (const doc of docs) {
+    if (isCloudinaryUrl(doc.panelPhoto)) {
+      tasks.push({
+        label: "fireMockDrill",
+        docId: doc._id.toString(),
+        run: async () => {
+          doc.panelPhoto = await archiveOneUrl(doc.panelPhoto);
+          touchedDocs.add(doc);
+        },
+      });
+    }
+    if (isCloudinaryUrl(doc.reportAttachment)) {
+      tasks.push({
+        label: "fireMockDrill",
+        docId: doc._id.toString(),
+        run: async () => {
+          doc.reportAttachment = await archiveOneUrl(doc.reportAttachment);
+          touchedDocs.add(doc);
+        },
+      });
+    }
+    doc.checklistAttachments.forEach((url, i) => {
+      if (!isCloudinaryUrl(url)) return;
+      tasks.push({
+        label: "fireMockDrill",
+        docId: doc._id.toString(),
+        run: async () => {
+          doc.checklistAttachments[i] = await archiveOneUrl(url);
+          touchedDocs.add(doc);
+        },
+      });
+    });
+    // Videos are left on Cloudinary for now — they can be large enough
+    // that buffering the whole file in memory to re-upload isn't safe
+    // without streaming support, which this doesn't implement yet.
+  }
+  return tasks;
+}
+
+// Interleaves each model's task list round-robin (one from model A, one
+// from B, ... back to A) instead of concatenating them — so if the time
+// budget runs out partway through, every model already got a fair turn
+// rather than the first, largest backlog eating the whole run.
+function interleave(lists) {
+  const merged = [];
+  const maxLen = Math.max(0, ...lists.map((l) => l.length));
+  for (let i = 0; i < maxLen; i++) {
+    for (const list of lists) {
+      if (list[i]) merged.push(list[i]);
+    }
+  }
+  return merged;
+}
+
+// A fixed pool of workers each pull the next task off the shared queue —
+// standard bounded-concurrency pattern — until the queue's drained or the
+// wall-clock budget's spent, whichever comes first.
+async function runPool(tasks, startedAt) {
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < tasks.length && !budgetExceeded(startedAt)) {
+      const task = tasks[nextIndex++];
       try {
-        photo.photoUrl = await archiveOneUrl(photo.photoUrl);
+        await task.run();
       } catch (err) {
-        console.error("[archive] PatrolSubmission photo failed", doc._id.toString(), err.message);
+        console.error(`[archive] ${task.label} failed`, task.docId, err.message);
       }
     }
-    await doc.save();
-    processed++;
   }
-  return processed;
-}
-
-async function archiveNightGuardSubmissions(cutoff, startedAt) {
-  const docs = await NightGuardSubmission.find({
-    submittedAt: { $lt: cutoff },
-    guardPhotoUrl: { $regex: "res\\.cloudinary\\.com" },
-  }).limit(BATCH_LIMIT);
-
-  let processed = 0;
-  for (const doc of docs) {
-    if (budgetExceeded(startedAt)) break;
-    try {
-      doc.guardPhotoUrl = await archiveOneUrl(doc.guardPhotoUrl);
-      await doc.save();
-    } catch (err) {
-      console.error("[archive] NightGuardSubmission failed", doc._id.toString(), err.message);
-    }
-    processed++;
-  }
-  return processed;
-}
-
-async function archiveAttendanceScans(cutoff, startedAt) {
-  const docs = await AttendanceScan.find({
-    timestamp: { $lt: cutoff },
-    photo: { $regex: "res\\.cloudinary\\.com" },
-  }).limit(BATCH_LIMIT);
-
-  let processed = 0;
-  for (const doc of docs) {
-    if (budgetExceeded(startedAt)) break;
-    try {
-      doc.photo = await archiveOneUrl(doc.photo);
-      await doc.save();
-    } catch (err) {
-      console.error("[archive] AttendanceScan failed", doc._id.toString(), err.message);
-    }
-    processed++;
-  }
-  return processed;
-}
-
-async function archiveGCHousekeepingSubmissions(cutoff, startedAt) {
-  const docs = await GCHousekeepingSubmission.find({
-    submittedAt: { $lt: cutoff },
-    "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
-  }).limit(BATCH_LIMIT);
-
-  let processed = 0;
-  for (const doc of docs) {
-    if (budgetExceeded(startedAt)) break;
-    for (const photo of doc.photos) {
-      if (!isCloudinaryUrl(photo.photoUrl)) continue;
-      if (budgetExceeded(startedAt)) break;
-      try {
-        photo.photoUrl = await archiveOneUrl(photo.photoUrl);
-      } catch (err) {
-        console.error("[archive] GCHousekeepingSubmission photo failed", doc._id.toString(), err.message);
-      }
-    }
-    await doc.save();
-    processed++;
-  }
-  return processed;
-}
-
-async function archiveFireMockDrills(cutoff, startedAt) {
-  // date is a "YYYY-MM-DD" string, not a real Date field, so compare as
-  // strings — works fine since ISO-formatted dates sort lexicographically.
-  const cutoffKey = cutoff.toISOString().slice(0, 10);
-  const docs = await FireMockDrill.find({ date: { $lt: cutoffKey } }).limit(BATCH_LIMIT);
-
-  let processed = 0;
-  for (const doc of docs) {
-    if (budgetExceeded(startedAt)) break;
-    try {
-      if (isCloudinaryUrl(doc.panelPhoto)) doc.panelPhoto = await archiveOneUrl(doc.panelPhoto);
-      if (isCloudinaryUrl(doc.reportAttachment)) doc.reportAttachment = await archiveOneUrl(doc.reportAttachment);
-      for (let i = 0; i < doc.checklistAttachments.length; i++) {
-        if (isCloudinaryUrl(doc.checklistAttachments[i])) {
-          doc.checklistAttachments[i] = await archiveOneUrl(doc.checklistAttachments[i]);
-        }
-      }
-      // Videos are left on Cloudinary for now — they can be large enough
-      // that buffering the whole file in memory to re-upload isn't safe
-      // without streaming support, which this doesn't implement yet.
-      await doc.save();
-    } catch (err) {
-      console.error("[archive] FireMockDrill failed", doc._id.toString(), err.message);
-    }
-    processed++;
-  }
-  return processed;
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  return nextIndex;
 }
 
 async function archiveOldMedia() {
   if (!isConfigured()) return;
   const cutoff = new Date(Date.now() - ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000);
+  const cutoffKey = cutoff.toISOString().slice(0, 10); // FireMockDrill's date is a "YYYY-MM-DD" string
   const startedAt = Date.now();
 
-  const counts = {};
-  const steps = [
-    ["patrol", archivePatrolSubmissions],
-    ["nightGuard", archiveNightGuardSubmissions],
-    ["attendance", archiveAttendanceScans],
-    ["fireMockDrill", archiveFireMockDrills],
-    ["gcHousekeeping", archiveGCHousekeepingSubmissions],
-  ];
-  for (const [key, fn] of steps) {
-    if (budgetExceeded(startedAt)) {
-      counts[key] = 0;
-      continue;
-    }
-    counts[key] = await fn(cutoff, startedAt);
-  }
+  const [patrolDocs, nightGuardDocs, attendanceDocs, fireMockDrillDocs, gcHousekeepingDocs, gcClubDocs, reserveClubDocs, regalGardenClubDocs] =
+    await Promise.all([
+      PatrolSubmission.find({ submittedAt: { $lt: cutoff }, "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" } }).limit(
+        BATCH_LIMIT
+      ),
+      NightGuardSubmission.find({ submittedAt: { $lt: cutoff }, guardPhotoUrl: { $regex: "res\\.cloudinary\\.com" } }).limit(
+        BATCH_LIMIT
+      ),
+      AttendanceScan.find({ timestamp: { $lt: cutoff }, photo: { $regex: "res\\.cloudinary\\.com" } }).limit(BATCH_LIMIT),
+      FireMockDrill.find({ date: { $lt: cutoffKey } }).limit(BATCH_LIMIT),
+      GCHousekeepingSubmission.find({
+        submittedAt: { $lt: cutoff },
+        "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
+      }).limit(BATCH_LIMIT),
+      GCClubSubmission.find({ submittedAt: { $lt: cutoff }, "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" } }).limit(
+        BATCH_LIMIT
+      ),
+      ReserveClubSubmission.find({
+        submittedAt: { $lt: cutoff },
+        "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
+      }).limit(BATCH_LIMIT),
+      RegalGardenClubSubmission.find({
+        submittedAt: { $lt: cutoff },
+        "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
+      }).limit(BATCH_LIMIT),
+    ]);
 
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  if (total > 0) console.log("[archive] processed", counts);
+  const touchedDocs = new Set();
+  const taskLists = [
+    photosArrayTasks(patrolDocs, "patrol", touchedDocs),
+    singleFieldTasks(nightGuardDocs, "guardPhotoUrl", "nightGuard", touchedDocs),
+    singleFieldTasks(attendanceDocs, "photo", "attendance", touchedDocs),
+    fireMockDrillTasks(fireMockDrillDocs, touchedDocs),
+    photosArrayTasks(gcHousekeepingDocs, "gcHousekeeping", touchedDocs),
+    photosArrayTasks(gcClubDocs, "gcClub", touchedDocs),
+    photosArrayTasks(reserveClubDocs, "reserveClub", touchedDocs),
+    photosArrayTasks(regalGardenClubDocs, "regalGardenClub", touchedDocs),
+  ];
+
+  const tasks = interleave(taskLists);
+  const attempted = await runPool(tasks, startedAt);
+
+  await Promise.all([...touchedDocs].map((doc) => doc.save()));
+
+  if (attempted > 0) {
+    console.log(
+      `[archive] attempted ${attempted}/${tasks.length} eligible files, touched ${touchedDocs.size} documents`
+    );
+  }
 }
 
 module.exports = { archiveOldMedia };
