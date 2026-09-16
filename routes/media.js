@@ -2,15 +2,7 @@ const express = require("express");
 const router = express.Router();
 const asyncHandler = require("../utils/asyncHandler");
 const { fetchDriveFile } = require("../utils/googleDrive");
-const { cloudinary, getMainUploadAuth, CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
-
-// TEMP diagnostic. Remove after checking.
-router.get(
-  "/_debug-accounts",
-  asyncHandler(async (req, res) => {
-    res.json({ count: CLOUDINARY_ACCOUNTS.length, labels: CLOUDINARY_ACCOUNTS.map((a) => a.label) });
-  })
-);
+const { cloudinary, getMainUploadAuth } = require("../middleware/upload");
 
 const IMAGE_TRANSFORMATION = "w_1600,h_1600,c_limit,q_auto:good,f_auto";
 const FOLDERS = { main: "heaven-heights", housekeeping: "heaven-heights-housekeeping" };
