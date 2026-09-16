@@ -34,7 +34,7 @@ const REGAL_GARDEN_CLUB_FORMS = [
       { label: "PH Level (Short Answer)", type: "text" },
       photo("PH level Pic"),
       photo("Pool Outside Area"),
-      photo("Shower Area"),
+      photo("Shower Area", { required: false }),
     ],
   },
 ];
