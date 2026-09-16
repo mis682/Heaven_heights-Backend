@@ -1,12 +1,12 @@
 const ExcelJS = require("exceljs");
 const ReserveClubDailyReport = require("../models/ReserveClubDailyReport");
-const { GC_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
+const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { RESERVE_CLUB_FORMS, getFormByNumber } = require("../constants/reserveClubForms");
 const { buildReserveClubReportPdf } = require("../utils/reserveClubReportPdf");
 
 exports.meta = async (req, res) => {
   res.json({
-    statusOptions: GC_CLUB_STATUS_OPTIONS,
+    statusOptions: RESERVE_REGAL_CLUB_STATUS_OPTIONS,
     forms: RESERVE_CLUB_FORMS.map((f) => ({
       formNumber: f.formNumber,
       label: f.label,

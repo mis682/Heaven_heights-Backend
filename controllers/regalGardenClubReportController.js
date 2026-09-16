@@ -1,12 +1,12 @@
 const ExcelJS = require("exceljs");
 const RegalGardenClubDailyReport = require("../models/RegalGardenClubDailyReport");
-const { GC_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
+const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { REGAL_GARDEN_CLUB_FORMS, getFormByNumber } = require("../constants/regalGardenClubForms");
 const { buildRegalGardenClubReportPdf } = require("../utils/regalGardenClubReportPdf");
 
 exports.meta = async (req, res) => {
   res.json({
-    statusOptions: GC_CLUB_STATUS_OPTIONS,
+    statusOptions: RESERVE_REGAL_CLUB_STATUS_OPTIONS,
     forms: REGAL_GARDEN_CLUB_FORMS.map((f) => ({
       formNumber: f.formNumber,
       label: f.label,
