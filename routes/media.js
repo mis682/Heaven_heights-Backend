@@ -2,36 +2,7 @@ const express = require("express");
 const router = express.Router();
 const asyncHandler = require("../utils/asyncHandler");
 const { fetchDriveFile } = require("../utils/googleDrive");
-const { cloudinary, getMainUploadAuth, CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
-
-// TEMP diagnostic — per-day usage history for a given account label.
-// Remove after checking.
-router.get(
-  "/_debug-daily-usage",
-  asyncHandler(async (req, res) => {
-    const label = req.query.label || "Housekeeping";
-    const acc = CLOUDINARY_ACCOUNTS.find((a) => a.label === label);
-    if (!acc) return res.status(404).json({ message: "account not found", available: CLOUDINARY_ACCOUNTS.map((a) => a.label) });
-    const fromDay = parseInt(req.query.from || "1", 10);
-    const toDay = parseInt(req.query.to || "16", 10);
-    const results = [];
-    for (let d = fromDay; d <= toDay; d++) {
-      const date = `2026-09-${String(d).padStart(2, "0")}`;
-      try {
-        const usage = await cloudinary.api.usage({ date, cloud_name: acc.cloud_name, api_key: acc.api_key, api_secret: acc.api_secret });
-        results.push({
-          date,
-          credits: usage.credits?.usage ?? null,
-          storageMB: usage.storage?.usage ? (usage.storage.usage / (1024 * 1024)).toFixed(1) : null,
-          bandwidthMB: usage.bandwidth?.usage ? (usage.bandwidth.usage / (1024 * 1024)).toFixed(1) : null,
-        });
-      } catch (err) {
-        results.push({ date, error: err.message });
-      }
-    }
-    res.json(results);
-  })
-);
+const { cloudinary, getMainUploadAuth } = require("../middleware/upload");
 
 const IMAGE_TRANSFORMATION = "w_1600,h_1600,c_limit,q_auto:good,f_auto";
 const FOLDERS = { main: "heaven-heights", housekeeping: "heaven-heights-housekeeping" };
