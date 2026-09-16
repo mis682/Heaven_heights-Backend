@@ -28,12 +28,18 @@ const CONCURRENCY = 6;
 // routes/cron.js), not a long-lived process, so it has to stop itself well
 // before that ceiling rather than run until killed mid-file. Leaves a
 // backlog to drain a bit more each run rather than trying to force it all
-// through at once. Kept with real margin below 60s: even in the worst
-// case, a task already in flight when the budget check fires can still
-// run up to its own network timeouts (see archiveOneUrl) before this
-// function actually returns — 30s budget + ~25s worst-case single-file
-// timeout chain stays safely under the 60s ceiling.
-const TIME_BUDGET_MS = 30000;
+// through at once.
+//
+// Kept at 20s (not just under Vercel's 60s) because an external scheduler
+// calling /api/cron/archive-media has its OWN response-wait timeout, often
+// defaulting to ~30s (confirmed: cron-job.org's scheduled runs were all
+// showing "Failed (timeout)" at exactly that mark) — if the caller gives
+// up and closes the connection, there's a real risk the still-in-flight
+// request gets cut short before finishing its work, silently losing
+// whatever wasn't done yet rather than just running a little slower.
+// Responding well inside ~25s total keeps this working regardless of
+// what any given external caller's own timeout is set to.
+const TIME_BUDGET_MS = 20000;
 
 function budgetExceeded(startedAt) {
   return Date.now() - startedAt > TIME_BUDGET_MS;
