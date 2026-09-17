@@ -76,7 +76,7 @@ exports.listSubmitted = async (req, res) => {
   const reports = await RegalGardenClubDailyReport.find(filter).sort({ reportDate: -1 });
   const summarized = reports.map((r) => {
     const counts = {};
-    GC_CLUB_STATUS_OPTIONS.forEach((s) => {
+    RESERVE_REGAL_CLUB_STATUS_OPTIONS.forEach((s) => {
       counts[s] = r.entries.filter((e) => e.status === s).length;
     });
     return {
