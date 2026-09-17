@@ -22,8 +22,11 @@ const BATCH_LIMIT = 40;
 // Each archived file costs 2 network round trips (Cloudinary download +
 // Drive upload) that spend almost all their time waiting on I/O, not CPU —
 // running several at once overlaps those waits instead of paying for them
-// one at a time, multiplying how much fits in the time budget below.
-const CONCURRENCY = 6;
+// one at a time, multiplying how much fits in the time budget below. Can't
+// extend TIME_BUDGET_MS itself (cron-job.org's free plan hard-caps its own
+// wait-for-response timeout at 30s, confirmed — no way to raise it there),
+// so this is the other lever: more done per second, in the same window.
+const CONCURRENCY = 10;
 // This runs inside a Vercel serverless invocation (60s ceiling — see
 // routes/cron.js), not a long-lived process, so it has to stop itself well
 // before that ceiling rather than run until killed mid-file. Leaves a
