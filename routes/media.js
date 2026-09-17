@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const sharp = require("sharp");
 const asyncHandler = require("../utils/asyncHandler");
 const { fetchDriveFile } = require("../utils/googleDrive");
 const { cloudinary, getMainUploadAuth } = require("../middleware/upload");
@@ -40,12 +41,41 @@ router.post(
 // Proxies an archived file's bytes from Google Drive — the file itself
 // stays private on Drive (this Workspace blocks public link-sharing), this
 // server holds the only credential that can read it and streams it through.
+//
+// An optional ?w= resizes on the fly (mirrors Cloudinary's thumbnail
+// transform — see client's cloudinaryThumbnailUrl) instead of always
+// shipping the full ~1600px original just to fill a small grid thumbnail.
+// The resized result is cached exactly like the original (see headers
+// below), so this only actually runs sharp once per distinct file+width.
 router.get(
   "/drive/:fileId",
   asyncHandler(async (req, res) => {
     const driveRes = await fetchDriveFile(req.params.fileId);
-    res.setHeader("Content-Type", driveRes.headers.get("content-type") || "application/octet-stream");
-    res.setHeader("Cache-Control", "public, max-age=86400");
+    const contentType = driveRes.headers.get("content-type") || "application/octet-stream";
+    const width = parseInt(req.query.w, 10);
+
+    // Archived files are historical records — once written, they never
+    // change — so there's no reason to ever re-fetch the same one from
+    // Drive through this proxy. `immutable` skips revalidation entirely;
+    // s-maxage lets Vercel's edge cache serve repeat views to *any*
+    // visitor (not just the same browser) without this function running
+    // again, cutting the origin-transfer cost of viewing the same archived
+    // photo more than once.
+    res.setHeader("Cache-Control", "public, max-age=31536000, s-maxage=31536000, immutable");
+
+    if (width > 0 && contentType.startsWith("image/")) {
+      const chunks = [];
+      for await (const chunk of driveRes.body) chunks.push(chunk);
+      const resized = await sharp(Buffer.concat(chunks))
+        .resize(width, width, { fit: "cover" })
+        .jpeg({ quality: 80 })
+        .toBuffer();
+      res.setHeader("Content-Type", "image/jpeg");
+      res.send(resized);
+      return;
+    }
+
+    res.setHeader("Content-Type", contentType);
     const reader = driveRes.body;
     for await (const chunk of reader) res.write(chunk);
     res.end();
