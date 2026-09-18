@@ -14,7 +14,17 @@ const RegalGardenClubSubmission = require("../models/RegalGardenClubSubmission")
 // no dependency on the Drive account being reachable). The app keeps
 // working exactly the same either way — only the URL stored in Mongo
 // changes; the field itself is untouched.
-const ARCHIVE_AFTER_DAYS = 2;
+//
+// Bumped back from 2 to 4 days: coordinators mostly review *recent*
+// submissions, and a Drive-hosted photo has to be proxied through our own
+// backend to be viewed (Drive is private) while a still-on-Cloudinary one
+// is served straight from Cloudinary's CDN, bypassing our backend
+// entirely. Keeping photos on Cloudinary through the days they're most
+// likely to actually get looked at means more of that real viewing
+// traffic costs us nothing, at the cost of Cloudinary holding storage a
+// bit longer — an easy trade given the 6-account pool has far more spare
+// capacity than Vercel's origin-transfer limit does right now.
+const ARCHIVE_AFTER_DAYS = 4;
 // A single Mongo query per model, so one huge backlog can't fetch
 // unbounded documents before the time/concurrency limits below even get a
 // chance to run.
