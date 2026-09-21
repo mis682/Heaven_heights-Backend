@@ -82,31 +82,4 @@ router.get(
   })
 );
 
-// TEMP debug route — remove after use.
-router.get(
-  "/_debug-daily-usage",
-  asyncHandler(async (req, res) => {
-    const { CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
-    const label = req.query.label || "Housekeeping";
-    const account = CLOUDINARY_ACCOUNTS.find((a) => a.label === label);
-    if (!account) return res.status(404).json({ error: "no such account", labels: CLOUDINARY_ACCOUNTS.map((a) => a.label) });
-    const cloudinary = require("cloudinary").v2;
-    cloudinary.config({ cloud_name: account.cloud_name, api_key: account.api_key, api_secret: account.api_secret });
-    const from = parseInt(req.query.from, 10) || 1;
-    const to = parseInt(req.query.to, 10) || 20;
-    const results = [];
-    for (let d = from; d <= to; d++) {
-      const date = `2026-09-${String(d).padStart(2, "0")}`;
-      try {
-        const u = await cloudinary.api.usage({ date });
-        results.push({ date, credits: u.credits?.usage, storageGB: (u.storage?.usage / 1e9).toFixed(3), bandwidthGB: (u.bandwidth?.usage / 1e9).toFixed(3) });
-      } catch (e) {
-        results.push({ date, error: e.message });
-      }
-    }
-    const current = await cloudinary.api.usage();
-    res.json({ label, results, current: { credits: current.credits, storageGB: (current.storage?.usage / 1e9).toFixed(3) } });
-  })
-);
-
 module.exports = router;
