@@ -79,4 +79,112 @@ function buildGardenCityReportPdf(report) {
   return doc;
 }
 
-module.exports = { buildGardenCityReportPdf };
+const CARD_NAVY = "#1e3550";
+const CARD_INK = "#24292b";
+const CARD_INK_SOFT = "#5b6265";
+const CARD_BAD = "#a83a2a";
+const CARD_BAD_BG = "#fbe7e4";
+const CARD_NEUTRAL_BG = "#e8e8e3";
+
+// Groups a flat entry list into guard -> checkpoint -> [visits], preserving
+// first-appearance order (not sorted) so it matches the order coordinators
+// actually logged things in, same as the classic export.
+function groupByGuardThenCheckpoint(entries) {
+  const guardOrder = [];
+  const byGuard = new Map();
+  entries.forEach((e) => {
+    const name = e.guardName || "Unassigned";
+    if (!byGuard.has(name)) {
+      byGuard.set(name, []);
+      guardOrder.push(name);
+    }
+    byGuard.get(name).push(e);
+  });
+
+  return guardOrder.map((guardName) => {
+    const guardEntries = byGuard.get(guardName);
+    const cpOrder = [];
+    const byCheckpoint = new Map();
+    guardEntries.forEach((e) => {
+      if (!byCheckpoint.has(e.checkpointLabel)) {
+        byCheckpoint.set(e.checkpointLabel, []);
+        cpOrder.push(e.checkpointLabel);
+      }
+      byCheckpoint.get(e.checkpointLabel).push(e);
+    });
+    const presentCount = guardEntries.filter((e) => e.status === "Present").length;
+    return {
+      guardName,
+      total: guardEntries.length,
+      presentCount,
+      checkpoints: cpOrder.map((label) => ({ label, visits: byCheckpoint.get(label) })),
+    };
+  });
+}
+
+// Same underlying data as buildGardenCityReportPdf, grouped by guard then by
+// checkpoint instead of one flat repeating-row table — each checkpoint's
+// scan times collapse onto a single line instead of a separate row per scan.
+function buildGardenCityReportPdfCard(report) {
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const bottomLimit = doc.page.height - doc.page.margins.bottom;
+
+  const entries = report.entries;
+  const total = entries.length;
+  const presentCount = entries.filter((e) => e.status === "Present").length;
+  const flaggedCount = total - presentCount;
+  const guards = groupByGuardThenCheckpoint(entries);
+
+  doc.font("Helvetica-Bold").fontSize(16).fillColor(CARD_NAVY).text(`Garden City — ${report.reportDate}`);
+  doc.moveDown(0.2);
+  doc.font("Helvetica").fontSize(9).fillColor(CARD_INK_SOFT).text("Security · Garden City Checkpoint Report — read-only admin view");
+  doc.moveDown(0.8);
+
+  doc.font("Helvetica-Bold").fontSize(10.5).fillColor(flaggedCount > 0 ? CARD_BAD : CARD_INK);
+  doc.text(`${presentCount}/${total} scans Present   ·   ${flaggedCount} flagged   ·   ${guards.length} guards on duty`);
+  doc.moveDown(1);
+
+  guards.forEach((guard) => {
+    const guardFlagged = guard.total - guard.presentCount;
+    const headerHeight = 22;
+    const estimatedHeight = headerHeight + guard.checkpoints.length * 16 + 12;
+    if (doc.y + estimatedHeight > bottomLimit) doc.addPage();
+
+    const barY = doc.y;
+    doc.rect(doc.x, barY, contentWidth, headerHeight).fill(guardFlagged > 0 ? CARD_BAD_BG : CARD_NEUTRAL_BG);
+    doc
+      .fillColor(guardFlagged > 0 ? CARD_BAD : CARD_INK)
+      .font("Helvetica-Bold")
+      .fontSize(10.5)
+      .text(guard.guardName, doc.x + 8, barY + 6, { continued: false });
+    doc
+      .fillColor(CARD_INK_SOFT)
+      .font("Helvetica")
+      .fontSize(8.5)
+      .text(`${guard.presentCount} / ${guard.total} Present`, doc.page.margins.left, barY + 7, { width: contentWidth - 10, align: "right" });
+    doc.y = barY + headerHeight + 6;
+
+    guard.checkpoints.forEach((cp) => {
+      if (doc.y + 16 > bottomLimit) {
+        doc.addPage();
+        doc.y = doc.page.margins.top;
+      }
+      doc.font("Helvetica-Bold").fontSize(9).fillColor(CARD_INK).text(cp.label, doc.x + 12, doc.y, { continued: true, width: 40 });
+      doc.font("Helvetica").fontSize(8.5);
+      cp.visits.forEach((v, i) => {
+        const isPresent = v.status === "Present";
+        doc.fillColor(isPresent ? CARD_INK_SOFT : CARD_BAD);
+        const label = isPresent ? v.time : `${v.time} (${v.status})`;
+        doc.text(`   ${label}`, { continued: i < cp.visits.length - 1 });
+      });
+      doc.moveDown(0.35);
+    });
+
+    doc.moveDown(0.6);
+  });
+
+  return doc;
+}
+
+module.exports = { buildGardenCityReportPdf, buildGardenCityReportPdfCard };
