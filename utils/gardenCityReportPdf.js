@@ -145,40 +145,47 @@ function buildGardenCityReportPdfCard(report) {
   doc.text(`${presentCount}/${total} scans Present   ·   ${flaggedCount} flagged   ·   ${guards.length} guards on duty`);
   doc.moveDown(1);
 
+  const left = doc.page.margins.left;
+
   guards.forEach((guard) => {
     const guardFlagged = guard.total - guard.presentCount;
     const headerHeight = 22;
-    const estimatedHeight = headerHeight + guard.checkpoints.length * 16 + 12;
+    const estimatedHeight = headerHeight + guard.checkpoints.length * 14 + 12;
     if (doc.y + estimatedHeight > bottomLimit) doc.addPage();
 
     const barY = doc.y;
-    doc.rect(doc.x, barY, contentWidth, headerHeight).fill(guardFlagged > 0 ? CARD_BAD_BG : CARD_NEUTRAL_BG);
+    doc.rect(left, barY, contentWidth, headerHeight).fill(guardFlagged > 0 ? CARD_BAD_BG : CARD_NEUTRAL_BG);
     doc
       .fillColor(guardFlagged > 0 ? CARD_BAD : CARD_INK)
       .font("Helvetica-Bold")
       .fontSize(10.5)
-      .text(guard.guardName, doc.x + 8, barY + 6, { continued: false });
+      .text(guard.guardName, left + 8, barY + 6, { lineBreak: false });
     doc
       .fillColor(CARD_INK_SOFT)
       .font("Helvetica")
       .fontSize(8.5)
-      .text(`${guard.presentCount} / ${guard.total} Present`, doc.page.margins.left, barY + 7, { width: contentWidth - 10, align: "right" });
+      .text(`${guard.presentCount} / ${guard.total} Present`, left, barY + 7, { width: contentWidth - 10, align: "right", lineBreak: false });
+    doc.x = left;
     doc.y = barY + headerHeight + 6;
 
+    // One line per checkpoint (label + all its scan times) instead of a
+    // continued-text chain — pdfkit's continued mode wraps the whole chain
+    // inside the FIRST segment's width, which broke badly with a narrow
+    // label column; a single string avoids that entirely and still wraps
+    // cleanly on its own if a checkpoint has many visits.
+    doc.font("Helvetica").fontSize(8.5);
     guard.checkpoints.forEach((cp) => {
-      if (doc.y + 16 > bottomLimit) {
+      const lineHeight = doc.heightOfString(cp.label, { width: contentWidth - 24 }) + 6;
+      if (doc.y + lineHeight > bottomLimit) {
         doc.addPage();
+        doc.x = left;
         doc.y = doc.page.margins.top;
       }
-      doc.font("Helvetica-Bold").fontSize(9).fillColor(CARD_INK).text(cp.label, doc.x + 12, doc.y, { continued: true, width: 40 });
-      doc.font("Helvetica").fontSize(8.5);
-      cp.visits.forEach((v, i) => {
-        const isPresent = v.status === "Present";
-        doc.fillColor(isPresent ? CARD_INK_SOFT : CARD_BAD);
-        const label = isPresent ? v.time : `${v.time} (${v.status})`;
-        doc.text(`   ${label}`, { continued: i < cp.visits.length - 1 });
-      });
-      doc.moveDown(0.35);
+      const hasIssue = cp.visits.some((v) => v.status !== "Present");
+      const timesText = cp.visits.map((v) => (v.status === "Present" ? v.time : `${v.time} (${v.status})`)).join("   ");
+      doc.fillColor(hasIssue ? CARD_BAD : CARD_INK_SOFT);
+      doc.text(`${cp.label}:   ${timesText}`, left + 12, doc.y, { width: contentWidth - 24 });
+      doc.moveDown(0.25);
     });
 
     doc.moveDown(0.6);
