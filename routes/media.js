@@ -4,6 +4,7 @@ const sharp = require("sharp");
 const asyncHandler = require("../utils/asyncHandler");
 const { fetchDriveFile } = require("../utils/googleDrive");
 const { cloudinary, getMainUploadAuth } = require("../middleware/upload");
+const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 const IMAGE_TRANSFORMATION = "w_1600,h_1600,c_limit,q_auto:good,f_auto";
 const FOLDERS = { main: "heaven-heights", housekeeping: "heaven-heights-housekeeping" };
@@ -66,10 +67,12 @@ router.get(
     if (width > 0 && contentType.startsWith("image/")) {
       const chunks = [];
       for await (const chunk of driveRes.body) chunks.push(chunk);
+      const __t0 = process.hrtime.bigint(); // TEMP diagnostic
       const resized = await sharp(Buffer.concat(chunks))
         .resize(width, width, { fit: "cover" })
         .jpeg({ quality: 80 })
         .toBuffer();
+      recordMetric("thumbnail", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
       res.setHeader("Content-Type", "image/jpeg");
       res.send(resized);
       return;
@@ -79,6 +82,16 @@ router.get(
     const reader = driveRes.body;
     for await (const chunk of reader) res.write(chunk);
     res.end();
+  })
+);
+
+// TEMP debug route — remove after the measurement window.
+router.get(
+  "/_debug-metrics",
+  asyncHandler(async (req, res) => {
+    const { RequestMetric } = require("../utils/requestMetrics");
+    const docs = await RequestMetric.find({}).sort({ date: 1, type: 1 }).lean();
+    res.json(docs);
   })
 );
 

@@ -6,6 +6,7 @@ const { notifyWebhook } = require("../utils/webhook");
 const { buildNightGuardReportPdf } = require("../utils/nightGuardReportPdf");
 const { buildIstDateRangeFilter } = require("../utils/istDateRange");
 const { computeNightGuardKpi } = require("../utils/nightGuardKpi");
+const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 exports.meta = async (req, res) => {
   res.json({
@@ -216,7 +217,9 @@ exports.exportPdf = async (req, res) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename=night-guard-report-${filenameDate}.pdf`);
 
+  const __t0 = process.hrtime.bigint(); // TEMP diagnostic
   const doc = buildNightGuardReportPdf(report, rangeLabel);
+  recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);
   doc.end();
 };

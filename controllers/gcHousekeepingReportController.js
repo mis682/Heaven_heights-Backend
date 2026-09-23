@@ -2,6 +2,7 @@ const ExcelJS = require("exceljs");
 const GCHousekeepingDailyReport = require("../models/GCHousekeepingDailyReport");
 const { GC_HOUSEKEEPING_STATUS_OPTIONS } = require("../constants/gcHousekeepingReportStatus");
 const { buildGCHousekeepingReportPdf } = require("../utils/gcHousekeepingReportPdf");
+const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 // Garden City Housekeeping always covers checkpoints 1-150 (the same range
 // split across GC Form 1-4) — every date's report gets all 150 rows
@@ -116,7 +117,9 @@ exports.exportPdf = async (req, res) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename=gc-housekeeping-report-${report.reportDate}.pdf`);
 
+  const __t0 = process.hrtime.bigint(); // TEMP diagnostic
   const doc = buildGCHousekeepingReportPdf(report);
+  recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);
   doc.end();
 };

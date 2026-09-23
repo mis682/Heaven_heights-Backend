@@ -5,6 +5,7 @@ const Project = require("../models/Project");
 const Checkpoint = require("../models/Checkpoint");
 const { buildCheckpointReportPdf } = require("../utils/checkpointReportPdf");
 const { computeFixedHourGuardKpi } = require("../utils/patrolRoundSla");
+const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 // Every patrol site uses the default hourly grid except where noted here —
 // Nature Park's actual patrol round runs on irregular, non-hourly time ranges.
@@ -235,7 +236,9 @@ exports.exportReportPdf = async (req, res) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename=patrol-report-${report.projectName}-${filenameDate}.pdf`);
 
+  const __t0 = process.hrtime.bigint(); // TEMP diagnostic
   const doc = buildCheckpointReportPdf(report);
+  recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);
   doc.end();
 };

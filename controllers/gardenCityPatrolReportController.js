@@ -4,6 +4,7 @@ const { GARDEN_CITY_SCHEDULE } = require("../constants/gardenCitySchedule");
 const { STATUS_OPTIONS } = require("../constants/reportStatus");
 const { buildGardenCityReportPdf, buildGardenCityReportPdfCard } = require("../utils/gardenCityReportPdf");
 const { computeGardenCitySla, addDaysToDateKey, LATE_THRESHOLD_MINUTES } = require("../utils/gardenCitySla");
+const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 exports.meta = async (req, res) => {
   res.json({ statusOptions: STATUS_OPTIONS, schedule: GARDEN_CITY_SCHEDULE });
@@ -211,7 +212,9 @@ exports.exportPdf = async (req, res) => {
   // ?format=card gives the grouped-by-guard layout; anything else (including
   // no param) keeps the existing flat table, which stays the default so a
   // plain "Download PDF" click behaves exactly as it does today.
+  const __t0 = process.hrtime.bigint(); // TEMP diagnostic
   const doc = req.query.format === "card" ? buildGardenCityReportPdfCard(report) : buildGardenCityReportPdf(report);
+  recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);
   doc.end();
 };

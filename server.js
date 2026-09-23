@@ -1,3 +1,8 @@
+// TEMP diagnostic — remove after the measurement window. Captures how long
+// this cold start's own require()s took, so we can see how much of Fluid
+// Active CPU growth is cold-start module-loading vs actual request work.
+const __coldStartT0 = process.hrtime.bigint();
+
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -32,6 +37,11 @@ const cronRoutes = require("./routes/cron");
 const { checkCloudinaryUsageAndAlert } = require("./utils/cloudinaryUsageAlert");
 const { archiveOldMedia } = require("./utils/archiveOldMedia");
 const { runDailyBackup } = require("./utils/dailyBackup");
+const { recordMetric } = require("./utils/requestMetrics"); // TEMP diagnostic
+
+// TEMP diagnostic — see note at top of file.
+const __coldStartLoadMs = Number(process.hrtime.bigint() - __coldStartT0) / 1e6;
+let __coldStartRecorded = false;
 
 const app = express();
 
@@ -44,7 +54,14 @@ app.use(express.json());
 // before any route handler runs.
 app.use((req, res, next) => {
   connectDB()
-    .then(() => next())
+    .then(() => {
+      // TEMP diagnostic — fires once per cold instance only.
+      if (!__coldStartRecorded) {
+        __coldStartRecorded = true;
+        recordMetric("coldstart", __coldStartLoadMs);
+      }
+      next();
+    })
     .catch((err) => {
       console.error("[server] failed to connect to MongoDB", err);
       res.status(503).json({ message: "Database unavailable" });

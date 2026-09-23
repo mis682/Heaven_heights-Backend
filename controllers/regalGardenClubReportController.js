@@ -3,6 +3,7 @@ const RegalGardenClubDailyReport = require("../models/RegalGardenClubDailyReport
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { REGAL_GARDEN_CLUB_FORMS, getFormByNumber } = require("../constants/regalGardenClubForms");
 const { buildRegalGardenClubReportPdf } = require("../utils/regalGardenClubReportPdf");
+const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 exports.meta = async (req, res) => {
   res.json({
@@ -122,7 +123,9 @@ exports.exportPdf = async (req, res) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename=regal-garden-club-${form?.label || report.formNumber}-${report.reportDate}.pdf`);
 
+  const __t0 = process.hrtime.bigint(); // TEMP diagnostic
   const doc = buildRegalGardenClubReportPdf(report, form);
+  recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);
   doc.end();
 };
