@@ -82,34 +82,4 @@ router.get(
   })
 );
 
-// TEMP debug route — remove after use.
-router.get(
-  "/_debug-all-usage",
-  asyncHandler(async (req, res) => {
-    const { CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
-    const cloudinaryLib = require("cloudinary").v2;
-    const from = parseInt(req.query.from, 10) || 1;
-    const to = parseInt(req.query.to, 10) || 21;
-    const out = {};
-    for (const account of CLOUDINARY_ACCOUNTS) {
-      if (account.label === "Primary") continue;
-      if (!account.cloud_name) { out[account.label] = { error: "not configured" }; continue; }
-      cloudinaryLib.config({ cloud_name: account.cloud_name, api_key: account.api_key, api_secret: account.api_secret });
-      const results = [];
-      for (let d = from; d <= to; d++) {
-        const date = `2026-09-${String(d).padStart(2, "0")}`;
-        try {
-          const u = await cloudinaryLib.api.usage({ date });
-          results.push({ date, credits: u.credits?.usage });
-        } catch (e) {
-          results.push({ date, error: "n/a" });
-        }
-      }
-      const current = await cloudinaryLib.api.usage().catch(() => null);
-      out[account.label] = { results, current: current ? { credits: current.credits } : null };
-    }
-    res.json(out);
-  })
-);
-
 module.exports = router;
