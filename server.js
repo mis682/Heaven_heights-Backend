@@ -8,35 +8,6 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
 
-const authRoutes = require("./routes/auth");
-const userRoutes = require("./routes/users");
-const roleRoutes = require("./routes/roles");
-const employeeRoutes = require("./routes/employees");
-const guardRoutes = require("./routes/guards");
-const projectRoutes = require("./routes/projects");
-const patrolRoutes = require("./routes/patrol");
-const patrolReportRoutes = require("./routes/patrolReports");
-const nightguardRoutes = require("./routes/nightguard");
-const attendanceRoutes = require("./routes/attendance");
-const maintenanceStaffRoutes = require("./routes/maintenanceStaff");
-const siteLocationRoutes = require("./routes/siteLocations");
-const attendanceScanRoutes = require("./routes/attendanceScan");
-const fireMockDrillRoutes = require("./routes/fireMockDrill");
-const gcHousekeepingRoutes = require("./routes/gcHousekeeping");
-const gcHousekeepingReportRoutes = require("./routes/gcHousekeepingReport");
-const gcClubRoutes = require("./routes/gcClub");
-const gcClubReportRoutes = require("./routes/gcClubReport");
-const reserveClubRoutes = require("./routes/reserveClub");
-const reserveClubReportRoutes = require("./routes/reserveClubReport");
-const regalGardenClubRoutes = require("./routes/regalGardenClub");
-const regalGardenClubReportRoutes = require("./routes/regalGardenClubReport");
-const idCardPrintRoutes = require("./routes/idCardPrint");
-const gardenCityPatrolReportRoutes = require("./routes/gardenCityPatrolReport");
-const mediaRoutes = require("./routes/media");
-const cronRoutes = require("./routes/cron");
-const { checkCloudinaryUsageAndAlert } = require("./utils/cloudinaryUsageAlert");
-const { archiveOldMedia } = require("./utils/archiveOldMedia");
-const { runDailyBackup } = require("./utils/dailyBackup");
 const { recordMetric } = require("./utils/requestMetrics"); // TEMP diagnostic
 
 // TEMP diagnostic — see note at top of file.
@@ -44,6 +15,20 @@ const __coldStartLoadMs = Number(process.hrtime.bigint() - __coldStartT0) / 1e6;
 let __coldStartRecorded = false;
 
 const app = express();
+
+// Defers loading a route module — and everything it pulls in (pdfkit,
+// exceljs, cloudinary, sharp, ...) — until the first request actually
+// reaches that path, instead of every cold start eagerly loading all ~20
+// route files' dependencies regardless of which single endpoint was hit.
+// The loaded router is cached (memoized) so warm invocations reuse it, same
+// as a normal top-level require() would.
+function lazyRoute(loader) {
+  let router;
+  return (req, res, next) => {
+    if (!router) router = loader();
+    router(req, res, next);
+  };
+}
 
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || "*" }));
 app.use(express.json());
@@ -68,32 +53,32 @@ app.use((req, res, next) => {
     });
 });
 
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/roles", roleRoutes);
-app.use("/api/employees", employeeRoutes);
-app.use("/api/guards", guardRoutes);
-app.use("/api/projects", projectRoutes);
-app.use("/api/patrol", patrolRoutes);
-app.use("/api/patrol-reports", patrolReportRoutes);
-app.use("/api/nightguard", nightguardRoutes);
-app.use("/api/attendance", attendanceRoutes);
-app.use("/api/maintenance-staff", maintenanceStaffRoutes);
-app.use("/api/site-locations", siteLocationRoutes);
-app.use("/api/attendance-scan", attendanceScanRoutes);
-app.use("/api/fire-mock-drill", fireMockDrillRoutes);
-app.use("/api/gc-housekeeping", gcHousekeepingRoutes);
-app.use("/api/gc-housekeeping-report", gcHousekeepingReportRoutes);
-app.use("/api/gc-club", gcClubRoutes);
-app.use("/api/gc-club-report", gcClubReportRoutes);
-app.use("/api/reserve-club", reserveClubRoutes);
-app.use("/api/reserve-club-report", reserveClubReportRoutes);
-app.use("/api/regal-garden-club", regalGardenClubRoutes);
-app.use("/api/regal-garden-club-report", regalGardenClubReportRoutes);
-app.use("/api/print-id-cards", idCardPrintRoutes);
-app.use("/api/garden-city-patrol-report", gardenCityPatrolReportRoutes);
-app.use("/api/media", mediaRoutes);
-app.use("/api/cron", cronRoutes);
+app.use("/api/auth", lazyRoute(() => require("./routes/auth")));
+app.use("/api/users", lazyRoute(() => require("./routes/users")));
+app.use("/api/roles", lazyRoute(() => require("./routes/roles")));
+app.use("/api/employees", lazyRoute(() => require("./routes/employees")));
+app.use("/api/guards", lazyRoute(() => require("./routes/guards")));
+app.use("/api/projects", lazyRoute(() => require("./routes/projects")));
+app.use("/api/patrol", lazyRoute(() => require("./routes/patrol")));
+app.use("/api/patrol-reports", lazyRoute(() => require("./routes/patrolReports")));
+app.use("/api/nightguard", lazyRoute(() => require("./routes/nightguard")));
+app.use("/api/attendance", lazyRoute(() => require("./routes/attendance")));
+app.use("/api/maintenance-staff", lazyRoute(() => require("./routes/maintenanceStaff")));
+app.use("/api/site-locations", lazyRoute(() => require("./routes/siteLocations")));
+app.use("/api/attendance-scan", lazyRoute(() => require("./routes/attendanceScan")));
+app.use("/api/fire-mock-drill", lazyRoute(() => require("./routes/fireMockDrill")));
+app.use("/api/gc-housekeeping", lazyRoute(() => require("./routes/gcHousekeeping")));
+app.use("/api/gc-housekeeping-report", lazyRoute(() => require("./routes/gcHousekeepingReport")));
+app.use("/api/gc-club", lazyRoute(() => require("./routes/gcClub")));
+app.use("/api/gc-club-report", lazyRoute(() => require("./routes/gcClubReport")));
+app.use("/api/reserve-club", lazyRoute(() => require("./routes/reserveClub")));
+app.use("/api/reserve-club-report", lazyRoute(() => require("./routes/reserveClubReport")));
+app.use("/api/regal-garden-club", lazyRoute(() => require("./routes/regalGardenClub")));
+app.use("/api/regal-garden-club-report", lazyRoute(() => require("./routes/regalGardenClubReport")));
+app.use("/api/print-id-cards", lazyRoute(() => require("./routes/idCardPrint")));
+app.use("/api/garden-city-patrol-report", lazyRoute(() => require("./routes/gardenCityPatrolReport")));
+app.use("/api/media", lazyRoute(() => require("./routes/media")));
+app.use("/api/cron", lazyRoute(() => require("./routes/cron")));
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
@@ -118,6 +103,9 @@ module.exports = app;
 // when the file is executed directly (`node server.js`), i.e. local dev.
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
+  const { checkCloudinaryUsageAndAlert } = require("./utils/cloudinaryUsageAlert");
+  const { archiveOldMedia } = require("./utils/archiveOldMedia");
+  const { runDailyBackup } = require("./utils/dailyBackup");
 
   const CLOUDINARY_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
   const ARCHIVE_INTERVAL_MS = 24 * 60 * 60 * 1000;

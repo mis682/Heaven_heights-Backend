@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-const sharp = require("sharp");
 const asyncHandler = require("../utils/asyncHandler");
 const { fetchDriveFile } = require("../utils/googleDrive");
 const { cloudinary, getMainUploadAuth } = require("../middleware/upload");
@@ -65,6 +64,7 @@ router.get(
     res.setHeader("Cache-Control", "public, max-age=31536000, s-maxage=31536000, immutable");
 
     if (width > 0 && contentType.startsWith("image/")) {
+      const sharp = require("sharp"); // lazy — only this endpoint needs it
       const chunks = [];
       for await (const chunk of driveRes.body) chunks.push(chunk);
       const __t0 = process.hrtime.bigint(); // TEMP diagnostic
