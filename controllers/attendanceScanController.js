@@ -386,6 +386,7 @@ exports.exportTeamAttendanceExcel = async (req, res) => {
   const sheet = workbook.addWorksheet(`Attendance ${MONTH_NAMES[month - 1]} ${year}`);
   const columns = [
     { header: "Name", key: "name", width: 24 },
+    { header: "Designation", key: "designation", width: 20 },
     { header: "Company", key: "companyName", width: 30 },
     { header: "Employee ID", key: "employeeId", width: 14 },
     { header: "Site", key: "siteName", width: 22 },
@@ -403,6 +404,7 @@ exports.exportTeamAttendanceExcel = async (req, res) => {
     const totals = statusTotals(row.days);
     const rowData = {
       name: row.name,
+      designation: row.designation,
       companyName: row.companyName,
       employeeId: row.employeeId,
       siteName: row.siteName,

@@ -12,6 +12,7 @@ const PAGE_HEIGHT = 620;
 function buildColumns(daysInMonth) {
   const fixed = [
     { label: "Name", width: 100, key: "name" },
+    { label: "Designation", width: 70, key: "designation" },
     { label: "Emp ID", width: 50, key: "employeeId" },
     { label: "Site", width: 85, key: "siteName" },
     { label: "Present%", width: 40, key: "presentPercent" },
@@ -41,6 +42,7 @@ function drawDataRow(doc, columns, row, x, y) {
     let text = "";
     let fill = "#ffffff";
     if (col.key === "name") text = row.name;
+    else if (col.key === "designation") text = row.designation || "";
     else if (col.key === "employeeId") text = row.employeeId;
     else if (col.key === "siteName") text = row.siteName;
     else if (col.key === "presentPercent") text = `${row.presentPercent}%`;
