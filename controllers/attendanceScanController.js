@@ -116,12 +116,12 @@ function determineNextPunch(lastRecord, shift) {
   return { type: "out", shiftDate: lastRecord.shiftDate || toDateKey(lastRecord.timestamp) };
 }
 
-// Guards and Electricians rotate between sites daily, so their assigned
-// "home" site in the roster doesn't reflect where they're actually posted on
-// a given day — the geofence check is skipped for them, but stays enforced
-// for everyone else (housekeeping, gardeners, drivers, etc.) who work a
-// fixed site.
-const GEOFENCE_EXEMPT_DESIGNATIONS = ["securityguard", "electrician"];
+// Guards, Electricians, Labour, and Mistri/Mistry rotate between sites
+// daily, so their assigned "home" site in the roster doesn't reflect where
+// they're actually posted on a given day — the geofence check is skipped
+// for them, but stays enforced for everyone else (housekeeping, gardeners,
+// drivers, etc.) who work a fixed site.
+const GEOFENCE_EXEMPT_DESIGNATIONS = ["securityguard", "electrician", "labour", "mistri", "mistry"];
 function isGeofenceExempt(designation) {
   return GEOFENCE_EXEMPT_DESIGNATIONS.includes((designation || "").toLowerCase().replace(/\s+/g, ""));
 }
