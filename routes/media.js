@@ -95,4 +95,57 @@ router.get(
   })
 );
 
+// TEMP debug route — counts the archive backlog (files still on Cloudinary
+// past ARCHIVE_AFTER_DAYS, same filters archiveOldMedia.js itself uses) —
+// remove after checking.
+router.get(
+  "/_debug-backlog",
+  asyncHandler(async (req, res) => {
+    const PatrolSubmission = require("../models/PatrolSubmission");
+    const NightGuardSubmission = require("../models/NightGuardSubmission");
+    const AttendanceScan = require("../models/AttendanceScan");
+    const FireMockDrill = require("../models/FireMockDrill");
+    const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
+    const GCClubSubmission = require("../models/GCClubSubmission");
+    const ReserveClubSubmission = require("../models/ReserveClubSubmission");
+    const RegalGardenClubSubmission = require("../models/RegalGardenClubSubmission");
+
+    const ARCHIVE_AFTER_DAYS = 4;
+    const cutoff = new Date(Date.now() - ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000);
+    const cutoffKey = cutoff.toISOString().slice(0, 10);
+    const isCloudinary = (url) => Boolean(url) && url.includes("res.cloudinary.com");
+
+    async function countPhotosArray(Model, dateField) {
+      const docs = await Model.find(
+        { [dateField]: { $lt: cutoff }, "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" } },
+        { photos: 1 }
+      ).lean();
+      let count = 0;
+      for (const doc of docs) for (const p of doc.photos) if (isCloudinary(p.photoUrl)) count++;
+      return count;
+    }
+
+    const [patrol, nightGuard, attendance, gcHousekeeping, gcClub, reserveClub, regalGardenClub, fireMockDocs] = await Promise.all([
+      countPhotosArray(PatrolSubmission, "submittedAt"),
+      NightGuardSubmission.countDocuments({ submittedAt: { $lt: cutoff }, guardPhotoUrl: { $regex: "res\\.cloudinary\\.com" } }),
+      AttendanceScan.countDocuments({ timestamp: { $lt: cutoff }, photo: { $regex: "res\\.cloudinary\\.com" } }),
+      countPhotosArray(GCHousekeepingSubmission, "submittedAt"),
+      countPhotosArray(GCClubSubmission, "submittedAt"),
+      countPhotosArray(ReserveClubSubmission, "submittedAt"),
+      countPhotosArray(RegalGardenClubSubmission, "submittedAt"),
+      FireMockDrill.find({ date: { $lt: cutoffKey } }, { panelPhoto: 1, reportAttachment: 1, checklistAttachments: 1 }).lean(),
+    ]);
+
+    let fireMockDrill = 0;
+    for (const doc of fireMockDocs) {
+      if (isCloudinary(doc.panelPhoto)) fireMockDrill++;
+      if (isCloudinary(doc.reportAttachment)) fireMockDrill++;
+      for (const url of doc.checklistAttachments || []) if (isCloudinary(url)) fireMockDrill++;
+    }
+
+    const total = patrol + nightGuard + attendance + fireMockDrill + gcHousekeeping + gcClub + reserveClub + regalGardenClub;
+    res.json({ patrol, nightGuard, attendance, fireMockDrill, gcHousekeeping, gcClub, reserveClub, regalGardenClub, total });
+  })
+);
+
 module.exports = router;
