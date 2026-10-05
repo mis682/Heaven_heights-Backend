@@ -95,4 +95,62 @@ router.get(
   })
 );
 
+// TEMP debug route — day-by-day Cloudinary credit usage for the requested
+// accounts, from ?from= to ?to= (YYYY-MM-DD, both inclusive). Cloudinary's
+// usage API accepts a `date` param returning that day's cumulative-to-date
+// snapshot (not an isolated delta) — this calls it once per day per account,
+// in small batches to stay well under Cloudinary's rate limit, then derives
+// each day's own usage by subtracting the previous day's cumulative value.
+// Remove after checking.
+router.get(
+  "/_debug-daily-usage",
+  asyncHandler(async (req, res) => {
+    const { CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
+    const wantLabels = (req.query.accounts || "Primary,Housekeeping,Fallback 3").split(",").map((s) => s.trim());
+    const accounts = CLOUDINARY_ACCOUNTS.filter((a) => wantLabels.includes(a.label));
+
+    const from = req.query.from || "2026-09-01";
+    const to = req.query.to || new Date().toISOString().slice(0, 10);
+    const dates = [];
+    for (let d = new Date(from + "T00:00:00Z"); d <= new Date(to + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + 1)) {
+      dates.push(d.toISOString().slice(0, 10));
+    }
+
+    async function getUsageOnDate(account, date) {
+      try {
+        const usage = await cloudinary.api.usage({
+          cloud_name: account.cloud_name,
+          api_key: account.api_key,
+          api_secret: account.api_secret,
+          date,
+        });
+        return usage.credits?.usage ?? null;
+      } catch {
+        return null;
+      }
+    }
+
+    const BATCH_SIZE = 5;
+    const result = {};
+    for (const account of accounts) {
+      const cumulative = {};
+      for (let i = 0; i < dates.length; i += BATCH_SIZE) {
+        const batch = dates.slice(i, i + BATCH_SIZE);
+        const values = await Promise.all(batch.map((date) => getUsageOnDate(account, date)));
+        batch.forEach((date, j) => (cumulative[date] = values[j]));
+      }
+      let prev = null;
+      const daily = dates.map((date) => {
+        const cum = cumulative[date];
+        const delta = cum != null && prev != null ? +(cum - prev).toFixed(2) : null;
+        prev = cum != null ? cum : prev;
+        return { date, cumulative: cum, dailyUsed: delta };
+      });
+      result[account.label] = daily;
+    }
+
+    res.json(result);
+  })
+);
+
 module.exports = router;
