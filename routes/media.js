@@ -95,4 +95,66 @@ router.get(
   })
 );
 
+// TEMP debug route — exact per-day archived-file counts, read straight from
+// Google Drive's own file metadata (createdTime), not a derived estimate.
+// Every file archiveOldMedia.js ever moved to Drive still has its real
+// creation timestamp there, so this works for any past day, not just ones
+// we happened to snapshot live — read-only, no mutation. Remove after
+// checking.
+router.get(
+  "/_debug-archived-count",
+  asyncHandler(async (req, res) => {
+    const days = parseInt(req.query.days, 10) || 10;
+    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_OAUTH_CLIENT_ID,
+        client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+        refresh_token: process.env.GOOGLE_OAUTH_REFRESH_TOKEN,
+        grant_type: "refresh_token",
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
+    if (!accessToken) return res.status(500).json({ error: "token fetch failed", detail: tokenData });
+
+    async function countForDay(dateStr) {
+      const start = `${dateStr}T00:00:00Z`;
+      const endDateObj = new Date(dateStr + "T00:00:00Z");
+      endDateObj.setUTCDate(endDateObj.getUTCDate() + 1);
+      const end = endDateObj.toISOString().slice(0, 19) + "Z";
+      const q = `'${folderId}' in parents and createdTime >= '${start}' and createdTime < '${end}' and trashed = false`;
+
+      let count = 0;
+      let pageToken;
+      do {
+        const url = new URL("https://www.googleapis.com/drive/v3/files");
+        url.searchParams.set("q", q);
+        url.searchParams.set("fields", "nextPageToken, files(id)");
+        url.searchParams.set("pageSize", "1000");
+        if (pageToken) url.searchParams.set("pageToken", pageToken);
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+        const d = await r.json();
+        count += (d.files || []).length;
+        pageToken = d.nextPageToken;
+      } while (pageToken);
+      return count;
+    }
+
+    const results = [];
+    const today = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setUTCDate(d.getUTCDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const count = await countForDay(dateStr);
+      results.push({ date: dateStr, count });
+    }
+    res.json(results);
+  })
+);
+
 module.exports = router;
