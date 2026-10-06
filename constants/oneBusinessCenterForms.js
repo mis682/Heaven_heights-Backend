@@ -44,6 +44,16 @@ const ONE_BUSINESS_CENTER_FORMS = [
       "Control Room (Ground Floor)",
     ].map((label) => photo(label)),
   },
+  {
+    formNumber: 3,
+    label: "First Floor Form",
+    checkpoints: [
+      "Lift Lobby (First Floor)",
+      "Lift Lobby to Left Side (First Floor)",
+      "Lift Lobby to Right Side (First Floor)",
+      "CCTV Monitor Screen Pic",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
