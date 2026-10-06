@@ -8,6 +8,7 @@ const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
 const GCClubSubmission = require("../models/GCClubSubmission");
 const ReserveClubSubmission = require("../models/ReserveClubSubmission");
 const RegalGardenClubSubmission = require("../models/RegalGardenClubSubmission");
+const OneBusinessCenterSubmission = require("../models/OneBusinessCenterSubmission");
 
 // Files older than this move from Cloudinary to Google Drive to free up
 // Cloudinary storage, while everything recent stays on Cloudinary (fast CDN,
@@ -252,8 +253,17 @@ async function archiveOldMedia() {
   const cutoffKey = cutoff.toISOString().slice(0, 10); // FireMockDrill's date is a "YYYY-MM-DD" string
   const startedAt = Date.now();
 
-  const [patrolDocs, nightGuardDocs, attendanceDocs, fireMockDrillDocs, gcHousekeepingDocs, gcClubDocs, reserveClubDocs, regalGardenClubDocs] =
-    await Promise.all([
+  const [
+    patrolDocs,
+    nightGuardDocs,
+    attendanceDocs,
+    fireMockDrillDocs,
+    gcHousekeepingDocs,
+    gcClubDocs,
+    reserveClubDocs,
+    regalGardenClubDocs,
+    oneBusinessCenterDocs,
+  ] = await Promise.all([
       PatrolSubmission.find({ submittedAt: { $lt: cutoff }, "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" } }).limit(
         BATCH_LIMIT
       ),
@@ -277,6 +287,10 @@ async function archiveOldMedia() {
         submittedAt: { $lt: cutoff },
         "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
       }).limit(BATCH_LIMIT),
+      OneBusinessCenterSubmission.find({
+        submittedAt: { $lt: cutoff },
+        "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
+      }).limit(BATCH_LIMIT),
     ]);
 
   const touchedDocs = new Set();
@@ -289,6 +303,7 @@ async function archiveOldMedia() {
     photosArrayTasks(gcClubDocs, "gcClub", touchedDocs),
     photosArrayTasks(reserveClubDocs, "reserveClub", touchedDocs),
     photosArrayTasks(regalGardenClubDocs, "regalGardenClub", touchedDocs),
+    photosArrayTasks(oneBusinessCenterDocs, "oneBusinessCenter", touchedDocs),
   ];
 
   const tasks = interleave(taskLists);
