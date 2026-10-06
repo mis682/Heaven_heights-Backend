@@ -26,6 +26,24 @@ const ONE_BUSINESS_CENTER_FORMS = [
       "Left Side Stair (Basement-2)",
     ].map((label) => photo(label)),
   },
+  {
+    formNumber: 2,
+    label: "Ground Floor Form",
+    checkpoints: [
+      "Reception (Ground Floor)",
+      "Lift Lobby (Ground Floor)",
+      "Male Washroom (Ground Floor)",
+      "Female Washroom (Ground Floor)",
+      "Handicap Washroom (Ground Floor)",
+      "Exit Ramp Terrace (Ground Floor)",
+      "Washroom Terrace (Ground Floor)",
+      "Back Side Floor (Ground Floor)",
+      "Road Side Floor (Ground Floor)",
+      "Right Side Floor (Ground Floor)",
+      "Left Side Floor (Ground Floor)",
+      "Control Room (Ground Floor)",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
