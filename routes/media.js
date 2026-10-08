@@ -95,47 +95,4 @@ router.get(
   })
 );
 
-// TEMP debug route — the full configured failover chain, current active
-// tier, and each account's live health — remove after checking.
-router.get(
-  "/_debug-chain-status",
-  asyncHandler(async (req, res) => {
-    const { CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
-    const CloudinaryAlertState = require("../models/CloudinaryAlertState");
-    const state = await CloudinaryAlertState.findOne().lean();
-    const activeIndex = state?.activeAccountIndex || 0;
-
-    const accounts = await Promise.all(
-      CLOUDINARY_ACCOUNTS.map(async (account, idx) => {
-        try {
-          const usage = await cloudinary.api.usage({
-            cloud_name: account.cloud_name,
-            api_key: account.api_key,
-            api_secret: account.api_secret,
-          });
-          return {
-            index: idx,
-            label: account.label,
-            cloud_name: account.cloud_name,
-            isActive: idx === activeIndex,
-            credits_used_percent: usage.credits?.used_percent,
-            ok: true,
-          };
-        } catch (err) {
-          return {
-            index: idx,
-            label: account.label,
-            cloud_name: account.cloud_name,
-            isActive: idx === activeIndex,
-            ok: false,
-            error: err.message || String(err),
-          };
-        }
-      })
-    );
-
-    res.json({ configuredChainLength: CLOUDINARY_ACCOUNTS.length, activeIndex, activeLabel: CLOUDINARY_ACCOUNTS[activeIndex]?.label, accounts });
-  })
-);
-
 module.exports = router;
