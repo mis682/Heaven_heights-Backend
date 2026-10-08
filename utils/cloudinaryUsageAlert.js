@@ -78,9 +78,15 @@ async function checkCloudinaryUsageAndAlert() {
     });
   }
 
-  // Failover chain: advance a tier when the currently-active account's own
-  // usage crosses the threshold, or jump straight back to Primary (tier 0)
-  // as soon as ITS usage recovers (e.g. the monthly reset) — regardless of
+  // Failover chain: advance past any tier whose usage crosses the threshold
+  // OR can't be read at all (e.g. Cloudinary disabled that cloud_name for
+  // exceeding its own plan limits) — a failed usage check must NOT default
+  // to "0% used", since that looks perfectly healthy and would strand new
+  // uploads on a broken account indefinitely (confirmed in production: the
+  // Housekeeping account got disabled, its usage() call started failing,
+  // and uploads kept routing there until Primary happened to recover below
+  // FALLBACK_THRESHOLD on its own). Jump straight back to Primary (tier 0)
+  // as soon as ITS usage recovers (e.g. the monthly reset), regardless of
   // which tier was active, since a Primary reset is the clearest signal a
   // new cycle has begun.
   const activeIndex = Math.min(state.activeAccountIndex || 0, CLOUDINARY_ACCOUNTS.length - 1);
@@ -89,10 +95,12 @@ async function checkCloudinaryUsageAndAlert() {
   if (activeIndex > 0 && usedPercent < FALLBACK_THRESHOLD) {
     newIndex = 0;
   } else {
-    const activeUsage = activeIndex === 0 ? primaryUsage : await getUsage(CLOUDINARY_ACCOUNTS[activeIndex]);
-    const activeUsedPercent = activeUsage?.credits?.used_percent ?? 0;
-    if (activeUsedPercent >= FALLBACK_THRESHOLD && activeIndex < CLOUDINARY_ACCOUNTS.length - 1) {
-      newIndex = activeIndex + 1;
+    newIndex = activeIndex;
+    while (newIndex < CLOUDINARY_ACCOUNTS.length - 1) {
+      const usage = newIndex === 0 ? primaryUsage : await getUsage(CLOUDINARY_ACCOUNTS[newIndex]);
+      const usedPct = usage ? usage.credits?.used_percent ?? 0 : 100;
+      if (usedPct < FALLBACK_THRESHOLD) break;
+      newIndex += 1;
     }
   }
 
