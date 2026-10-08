@@ -1,4 +1,4 @@
-const { cloudinary, CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
+const { cloudinary, CLOUDINARY_ACCOUNTS, FALLBACK_THRESHOLD } = require("../middleware/upload");
 const CloudinaryAlertState = require("../models/CloudinaryAlertState");
 const { sendAlertEmail } = require("./mailer");
 
@@ -7,11 +7,6 @@ const { sendAlertEmail } = require("./mailer");
 // back below the last-alerted threshold (e.g. Cloudinary's monthly
 // bandwidth/transformation reset).
 const THRESHOLDS = [50, 75, 90];
-
-// Above this, new uploads fail over to the next account in
-// CLOUDINARY_ACCOUNTS rather than risk Cloudinary rejecting them outright
-// once the active account's credits run out.
-const FALLBACK_THRESHOLD = 90;
 
 function toMB(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1);

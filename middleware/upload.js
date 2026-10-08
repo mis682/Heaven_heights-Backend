@@ -51,11 +51,59 @@ const CLOUDINARY_ACCOUNTS = [
   ...numberedFallbackAuths,
 ].filter((a) => a.cloud_name && a.api_key && a.api_secret);
 
-// Reads the tier set by that periodic check rather than calling Cloudinary's
-// usage API on every single upload.
+// Above this, an account is considered too close to its plan limit to keep
+// using — shared with cloudinaryUsageAlert.js's periodic failover check so
+// the two never drift apart.
+const FALLBACK_THRESHOLD = 90;
+
+async function isAccountHealthy(account) {
+  try {
+    const usage = await cloudinary.api.usage({
+      cloud_name: account.cloud_name,
+      api_key: account.api_key,
+      api_secret: account.api_secret,
+    });
+    return (usage.credits?.used_percent ?? 0) < FALLBACK_THRESHOLD;
+  } catch {
+    return false; // unreachable — e.g. Cloudinary disabled this cloud_name for exceeding its own plan limits
+  }
+}
+
+// cloudinaryUsageAlert.js's periodic job only runs every 12h — if an account
+// gets disabled or maxes out right after a run, uploads could keep landing
+// on it for up to 12h before the next run notices. This re-verifies the
+// active account's health right at the point every upload actually requests
+// credentials, closing that gap down to HEALTH_CHECK_INTERVAL_MS. Throttled
+// via an in-memory timestamp (safe since Render is a persistent process, not
+// serverless) so it costs one extra Cloudinary API call every couple of
+// minutes at most, not one per upload.
+const HEALTH_CHECK_INTERVAL_MS = 2 * 60 * 1000;
+let lastHealthCheckAt = 0;
+
+async function ensureActiveAccountHealthy(state) {
+  const now = Date.now();
+  const currentIndex = state.activeAccountIndex || 0;
+  if (now - lastHealthCheckAt < HEALTH_CHECK_INTERVAL_MS) return currentIndex;
+  lastHealthCheckAt = now;
+
+  let idx = currentIndex;
+  while (idx < CLOUDINARY_ACCOUNTS.length - 1 && !(await isAccountHealthy(CLOUDINARY_ACCOUNTS[idx]))) {
+    idx += 1;
+  }
+  if (idx !== currentIndex) {
+    state.activeAccountIndex = idx;
+    await state.save();
+  }
+  return idx;
+}
+
+// Reads the tier set by the periodic check (see cloudinaryUsageAlert.js),
+// topped up by the real-time re-verification above.
 async function getMainUploadAuth() {
-  const state = await CloudinaryAlertState.findOne();
-  const { label, ...auth } = CLOUDINARY_ACCOUNTS[state?.activeAccountIndex || 0] || CLOUDINARY_ACCOUNTS[0];
+  let state = await CloudinaryAlertState.findOne();
+  if (!state) state = await CloudinaryAlertState.create({});
+  const activeIndex = await ensureActiveAccountHealthy(state);
+  const { label, ...auth } = CLOUDINARY_ACCOUNTS[activeIndex] || CLOUDINARY_ACCOUNTS[0];
   return auth;
 }
 
@@ -190,4 +238,5 @@ module.exports = {
   housekeepingCloudinaryAuth,
   CLOUDINARY_ACCOUNTS,
   getMainUploadAuth,
+  FALLBACK_THRESHOLD,
 };
