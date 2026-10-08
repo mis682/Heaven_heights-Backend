@@ -1,6 +1,7 @@
 const multer = require("multer");
 const { v2: cloudinary } = require("cloudinary");
 const CloudinaryAlertState = require("../models/CloudinaryAlertState");
+const { sendAlertEmail } = require("../utils/mailer");
 
 const primaryCloudinaryAuth = {
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -93,6 +94,24 @@ async function ensureActiveAccountHealthy(state) {
   if (idx !== currentIndex) {
     state.activeAccountIndex = idx;
     await state.save();
+
+    const fromLabel = CLOUDINARY_ACCOUNTS[currentIndex].label;
+    const toLabel = CLOUDINARY_ACCOUNTS[idx].label;
+    // Fire-and-forget — a failed/slow email must never block or fail the
+    // upload this check is running for.
+    sendAlertEmail({
+      subject: `Cloudinary switched to "${toLabel}" account (real-time) — Heaven Heights`,
+      text:
+        `New uploads (Attendance, Patrol, Night Guard, Fire Mock Drill, Maintenance Staff, Housekeeping/Hospitality) ` +
+        `have switched from the "${fromLabel}" account to the "${toLabel}" account.\n\n` +
+        `Reason: "${fromLabel}" failed a real-time health check (either disabled/unreachable, or over the ` +
+        `${FALLBACK_THRESHOLD}% credit threshold) — caught immediately at upload time, not by the 12-hour periodic check.`,
+      html:
+        `<p>New uploads (Attendance, Patrol, Night Guard, Fire Mock Drill, Maintenance Staff, Housekeeping/Hospitality) ` +
+        `have switched from the <b>${fromLabel}</b> account to the <b>${toLabel}</b> account.</p>` +
+        `<p>Reason: "${fromLabel}" failed a real-time health check (either disabled/unreachable, or over the ` +
+        `${FALLBACK_THRESHOLD}% credit threshold) — caught immediately at upload time, not by the 12-hour periodic check.</p>`,
+    }).catch(() => {});
   }
   return idx;
 }
