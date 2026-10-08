@@ -95,45 +95,4 @@ router.get(
   })
 );
 
-// TEMP debug route — finds one real photo URL hosted on the (disabled)
-// Housekeeping cloud_name and checks whether it's still actually viewable
-// (delivery/CDN) even though uploads/admin-API calls to that account fail —
-// remove after checking.
-router.get(
-  "/_debug-housekeeping-photo-check",
-  asyncHandler(async (req, res) => {
-    const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
-    const GCClubSubmission = require("../models/GCClubSubmission");
-    const ReserveClubSubmission = require("../models/ReserveClubSubmission");
-
-    const cloudName = "xfqhpmqq"; // Housekeeping's cloud_name
-    const isHousekeepingUrl = (url) => Boolean(url) && url.includes(`res.cloudinary.com/${cloudName}/`);
-
-    async function findOneUrl(Model) {
-      const docs = await Model.find({ "photos.photoUrl": { $regex: cloudName } }, { photos: 1 }).limit(5).lean();
-      for (const doc of docs) {
-        const match = doc.photos.find((p) => isHousekeepingUrl(p.photoUrl));
-        if (match) return match.photoUrl;
-      }
-      return null;
-    }
-
-    const url =
-      (await findOneUrl(GCHousekeepingSubmission)) ||
-      (await findOneUrl(GCClubSubmission)) ||
-      (await findOneUrl(ReserveClubSubmission));
-
-    if (!url) return res.json({ found: false, message: "No Housekeeping-hosted photo found in the first few docs checked" });
-
-    try {
-      const r = await fetch(url, { method: "GET" });
-      const contentType = r.headers.get("content-type");
-      const contentLength = r.headers.get("content-length");
-      res.json({ found: true, url, status: r.status, ok: r.ok, contentType, contentLength });
-    } catch (err) {
-      res.json({ found: true, url, fetchError: err.message || String(err) });
-    }
-  })
-);
-
 module.exports = router;
