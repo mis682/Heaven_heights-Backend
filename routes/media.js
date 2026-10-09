@@ -95,14 +95,4 @@ router.get(
   })
 );
 
-// TEMP debug route — confirms the new webhook env var is actually set,
-// without exposing the full secret URL — remove after checking.
-router.get(
-  "/_debug-webhook-env-check",
-  asyncHandler(async (req, res) => {
-    const url = process.env.N8N_ONE_BUSINESS_CENTER_WEBHOOK_URL;
-    res.json({ set: Boolean(url), last8: url ? url.slice(-8) : null });
-  })
-);
-
 module.exports = router;
