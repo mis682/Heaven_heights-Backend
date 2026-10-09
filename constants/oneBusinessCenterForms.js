@@ -74,6 +74,24 @@ const ONE_BUSINESS_CENTER_FORMS = [
       "Left Side of Balcony (3rd Floor)",
     ].map((label) => photo(label)),
   },
+  {
+    formNumber: 5,
+    label: "4th and 5th Floor",
+    checkpoints: [
+      "Lift Lobby (4th Floor)",
+      "Handicap Washroom (4th Floor)",
+      "Female Washroom (4th Floor)",
+      "Male Washroom (4th Floor)",
+      "Lift Lobby to Right Side (4th Floor)",
+      "Lift Lobby to Left Side (4th Floor)",
+      "Lift Lobby (5th Floor)",
+      "Handicap Washroom (5th Floor)",
+      "Female Washroom (5th Floor)",
+      "Male Washroom (5th Floor)",
+      "Lift Lobby to Right Side (5th Floor)",
+      "Lift Lobby to Left Side (5th Floor)",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
