@@ -35,15 +35,18 @@ exports.createSubmission = async (req, res) => {
     ...textAnswers.map((t) => `${t.label}: ${t.value}`),
   ];
 
-  notifyWebhook({
-    type: "regal_garden_club",
-    formNumber: form.formNumber,
-    formLabel: form.label,
-    submittedBy,
-    checkpointsCovered: photos.length,
-    submittedAt: submission.submittedAt,
-    message: messageLines.join("\n"),
-  });
+  notifyWebhook(
+    {
+      type: "regal_garden_club",
+      formNumber: form.formNumber,
+      formLabel: form.label,
+      submittedBy,
+      checkpointsCovered: photos.length,
+      submittedAt: submission.submittedAt,
+      message: messageLines.join("\n"),
+    },
+    "N8N_REGAL_GARDEN_CLUB_WEBHOOK_URL"
+  );
 
   res.status(201).json(submission);
 };
