@@ -4,7 +4,10 @@
 // different n8n workflow (e.g. attendance has its own dedicated webhook,
 // separate from the shared one used for Patrol/Night Guard).
 async function notifyWebhook(payload, envKey = "N8N_WEBHOOK_URL") {
-  const webhookUrl = process.env[envKey];
+  // .trim() guards against a stray trailing newline/space in the env var's
+  // value (e.g. pasted into a dashboard with an extra line) — fetch() treats
+  // such a URL as invalid and the call silently fails otherwise.
+  const webhookUrl = process.env[envKey]?.trim();
   if (!webhookUrl) return;
   try {
     await fetch(webhookUrl, {
