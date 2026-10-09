@@ -2,7 +2,7 @@
 // checklists per form, since each form's checklist is its own distinct
 // list, not a shared numeric range). Each checkpoint has a type: "photo"
 // (default) or "text", and is required unless explicitly marked
-// { required: false }. Forms get appended as provided — 7 total expected.
+// { required: false }. All 7 forms present.
 function photo(label, opts = {}) {
   return { label, type: "photo", ...opts };
 }
@@ -104,6 +104,11 @@ const ONE_BUSINESS_CENTER_FORMS = [
       "Handicap Washroom (7th Floor)",
       "Lift Lobby (7th Floor)",
     ].map((label) => photo(label)),
+  },
+  {
+    formNumber: 7,
+    label: "Lift Form",
+    checkpoints: ["Lift-1", "Lift-2", "Lift-3", "Lift-4", "Lift-5 (Service Lift)"].map((label) => photo(label)),
   },
 ];
 
