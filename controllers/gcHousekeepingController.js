@@ -79,15 +79,18 @@ exports.finalizeSubmission = async (req, res) => {
     ...submission.photos.map((p) => `Checkpoint ${p.checkpointId}: ${p.photoUrl}`),
   ];
 
-  notifyWebhook({
-    type: "gc_housekeeping",
-    formNumber: form.formNumber,
-    formLabel: form.label,
-    submittedBy: submission.submittedBy,
-    checkpointsCovered: submission.photos.length,
-    submittedAt: submission.submittedAt,
-    message: messageLines.join("\n"),
-  });
+  notifyWebhook(
+    {
+      type: "gc_housekeeping",
+      formNumber: form.formNumber,
+      formLabel: form.label,
+      submittedBy: submission.submittedBy,
+      checkpointsCovered: submission.photos.length,
+      submittedAt: submission.submittedAt,
+      message: messageLines.join("\n"),
+    },
+    "N8N_GC_HOUSEKEEPING_WEBHOOK_URL"
+  );
 
   res.json(submission);
 };
