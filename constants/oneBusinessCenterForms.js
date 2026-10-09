@@ -92,6 +92,19 @@ const ONE_BUSINESS_CENTER_FORMS = [
       "Lift Lobby to Left Side (5th Floor)",
     ].map((label) => photo(label)),
   },
+  {
+    formNumber: 6,
+    label: "7th Floor Form",
+    checkpoints: [
+      "Terrace Pic 1 (7th Floor)",
+      "Terrace Pic 2 (7th Floor)",
+      "Upper Terrace (7th Floor)",
+      "Female Washroom (7th Floor)",
+      "Male Washroom (7th Floor)",
+      "Handicap Washroom (7th Floor)",
+      "Lift Lobby (7th Floor)",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
