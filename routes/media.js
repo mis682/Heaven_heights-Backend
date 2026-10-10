@@ -95,35 +95,4 @@ router.get(
   })
 );
 
-// TEMP debug route — current billing-cycle credit usage across all
-// Cloudinary accounts in the failover chain — remove after checking.
-router.get(
-  "/_debug-all-usage",
-  asyncHandler(async (req, res) => {
-    const { CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
-    const results = await Promise.all(
-      CLOUDINARY_ACCOUNTS.map(async (account) => {
-        try {
-          const usage = await cloudinary.api.usage({
-            cloud_name: account.cloud_name,
-            api_key: account.api_key,
-            api_secret: account.api_secret,
-          });
-          return {
-            label: account.label,
-            cloud_name: account.cloud_name,
-            plan: usage.plan,
-            credits_used: usage.credits?.usage,
-            credits_limit: usage.credits?.limit,
-            credits_used_percent: usage.credits?.used_percent,
-          };
-        } catch (err) {
-          return { label: account.label, cloud_name: account.cloud_name, error: err.message || String(err) };
-        }
-      })
-    );
-    res.json(results);
-  })
-);
-
 module.exports = router;
