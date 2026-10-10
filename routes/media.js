@@ -109,4 +109,38 @@ router.get(
   })
 );
 
+// TEMP debug route — counts the archive backlog — remove after checking.
+router.get(
+  "/_debug-backlog",
+  asyncHandler(async (req, res) => {
+    const PatrolSubmission = require("../models/PatrolSubmission");
+    const AttendanceScan = require("../models/AttendanceScan");
+    const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
+    const GCClubSubmission = require("../models/GCClubSubmission");
+
+    const ARCHIVE_AFTER_DAYS = 4;
+    const cutoff = new Date(Date.now() - ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000);
+    const isCloudinary = (url) => Boolean(url) && url.includes("res.cloudinary.com");
+
+    async function countPhotosArray(Model, dateField) {
+      const docs = await Model.find(
+        { [dateField]: { $lt: cutoff }, "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" } },
+        { photos: 1 }
+      ).lean();
+      let count = 0;
+      for (const doc of docs) for (const p of doc.photos) if (isCloudinary(p.photoUrl)) count++;
+      return count;
+    }
+
+    const [patrol, attendance, gcHousekeeping, gcClub] = await Promise.all([
+      countPhotosArray(PatrolSubmission, "submittedAt"),
+      AttendanceScan.countDocuments({ timestamp: { $lt: cutoff }, photo: { $regex: "res\\.cloudinary\\.com" } }),
+      countPhotosArray(GCHousekeepingSubmission, "submittedAt"),
+      countPhotosArray(GCClubSubmission, "submittedAt"),
+    ]);
+
+    res.json({ patrol, attendance, gcHousekeeping, gcClub, total: patrol + attendance + gcHousekeeping + gcClub });
+  })
+);
+
 module.exports = router;
