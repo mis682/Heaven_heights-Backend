@@ -57,16 +57,27 @@ const CLOUDINARY_ACCOUNTS = [
 // the two never drift apart.
 const FALLBACK_THRESHOLD = 90;
 
+// A disabled/suspended cloud_name doesn't always fail fast — Cloudinary (or
+// the SDK's underlying HTTP client) can hang well past what any caller here
+// can afford to wait, instead of erroring out quickly. Without this timeout,
+// one slow/stuck account could block every caller of this function —
+// including archiveOldMedia's whole per-run time budget, starving every
+// other (healthy) account's files of processing time too.
+const HEALTH_CHECK_TIMEOUT_MS = 5000;
+
 async function isAccountHealthy(account) {
   try {
-    const usage = await cloudinary.api.usage({
-      cloud_name: account.cloud_name,
-      api_key: account.api_key,
-      api_secret: account.api_secret,
-    });
+    const usage = await Promise.race([
+      cloudinary.api.usage({
+        cloud_name: account.cloud_name,
+        api_key: account.api_key,
+        api_secret: account.api_secret,
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("health check timed out")), HEALTH_CHECK_TIMEOUT_MS)),
+    ]);
     return (usage.credits?.used_percent ?? 0) < FALLBACK_THRESHOLD;
   } catch {
-    return false; // unreachable — e.g. Cloudinary disabled this cloud_name for exceeding its own plan limits
+    return false; // unreachable, timed out, or disabled — treat the same: don't use this account right now
   }
 }
 
