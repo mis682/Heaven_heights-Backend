@@ -1,4 +1,4 @@
-const { cloudinary, CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
+const { cloudinary, CLOUDINARY_ACCOUNTS, isAccountHealthy } = require("../middleware/upload");
 const { uploadToDrive, isConfigured } = require("./googleDrive");
 const PatrolSubmission = require("../models/PatrolSubmission");
 const NightGuardSubmission = require("../models/NightGuardSubmission");
@@ -138,6 +138,9 @@ async function archiveOneUrl(url) {
 // can't starve the others out of the shared time budget, and what lets a
 // concurrency pool work each one down.
 
+// cloudName is attached to every task (parsed up front from the URL) so the
+// unhealthy-account filter below can drop tasks for a disabled/over-limit
+// account without re-parsing URLs itself.
 function photosArrayTasks(docs, label, touchedDocs) {
   const tasks = [];
   for (const doc of docs) {
@@ -146,6 +149,7 @@ function photosArrayTasks(docs, label, touchedDocs) {
       tasks.push({
         label,
         docId: doc._id.toString(),
+        cloudName: parseCloudinaryUrl(photo.photoUrl)?.cloudName,
         run: async () => {
           photo.photoUrl = await archiveOneUrl(photo.photoUrl);
           touchedDocs.add(doc);
@@ -163,6 +167,7 @@ function singleFieldTasks(docs, fieldName, label, touchedDocs) {
     tasks.push({
       label,
       docId: doc._id.toString(),
+      cloudName: parseCloudinaryUrl(doc[fieldName])?.cloudName,
       run: async () => {
         doc[fieldName] = await archiveOneUrl(doc[fieldName]);
         touchedDocs.add(doc);
@@ -179,6 +184,7 @@ function fireMockDrillTasks(docs, touchedDocs) {
       tasks.push({
         label: "fireMockDrill",
         docId: doc._id.toString(),
+        cloudName: parseCloudinaryUrl(doc.panelPhoto)?.cloudName,
         run: async () => {
           doc.panelPhoto = await archiveOneUrl(doc.panelPhoto);
           touchedDocs.add(doc);
@@ -189,6 +195,7 @@ function fireMockDrillTasks(docs, touchedDocs) {
       tasks.push({
         label: "fireMockDrill",
         docId: doc._id.toString(),
+        cloudName: parseCloudinaryUrl(doc.reportAttachment)?.cloudName,
         run: async () => {
           doc.reportAttachment = await archiveOneUrl(doc.reportAttachment);
           touchedDocs.add(doc);
@@ -200,6 +207,7 @@ function fireMockDrillTasks(docs, touchedDocs) {
       tasks.push({
         label: "fireMockDrill",
         docId: doc._id.toString(),
+        cloudName: parseCloudinaryUrl(url)?.cloudName,
         run: async () => {
           doc.checklistAttachments[i] = await archiveOneUrl(url);
           touchedDocs.add(doc);
@@ -306,14 +314,35 @@ async function archiveOldMedia() {
     photosArrayTasks(oneBusinessCenterDocs, "oneBusinessCenter", touchedDocs),
   ];
 
-  const tasks = interleave(taskLists);
+  const allTasks = interleave(taskLists);
+
+  // Skip files hosted on a currently-unhealthy account (disabled by
+  // Cloudinary, or over its own plan limit) — retrying them every single
+  // run would otherwise burn worker time/budget on files that can't succeed
+  // yet, starving every other (healthy) account's files of capacity. They
+  // stay untouched and simply get picked up again automatically once that
+  // account recovers — only the cloud_names actually present in this run's
+  // candidates get checked, not the whole chain, to keep this cheap.
+  const cloudNamesInTasks = [...new Set(allTasks.map((t) => t.cloudName).filter(Boolean))];
+  const healthByCloudName = new Map(
+    await Promise.all(
+      cloudNamesInTasks.map(async (cloudName) => {
+        const account = CLOUDINARY_ACCOUNTS.find((a) => a.cloud_name === cloudName);
+        return [cloudName, account ? await isAccountHealthy(account) : true];
+      })
+    )
+  );
+  const tasks = allTasks.filter((t) => healthByCloudName.get(t.cloudName) !== false);
+  const skippedForHealth = allTasks.length - tasks.length;
+
   const attempted = await runPool(tasks, startedAt);
 
   await Promise.all([...touchedDocs].map((doc) => doc.save()));
 
-  if (attempted > 0) {
+  if (attempted > 0 || skippedForHealth > 0) {
     console.log(
-      `[archive] attempted ${attempted}/${tasks.length} eligible files, touched ${touchedDocs.size} documents`
+      `[archive] attempted ${attempted}/${tasks.length} eligible files, touched ${touchedDocs.size} documents` +
+        (skippedForHealth > 0 ? `, skipped ${skippedForHealth} on unhealthy account(s)` : "")
     );
   }
 }

@@ -258,4 +258,5 @@ module.exports = {
   CLOUDINARY_ACCOUNTS,
   getMainUploadAuth,
   FALLBACK_THRESHOLD,
+  isAccountHealthy,
 };
