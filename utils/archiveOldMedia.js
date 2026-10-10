@@ -274,11 +274,40 @@ async function archiveOldMedia() {
   }
 }
 
+// Checks health for every *configured* account up front (not just whatever
+// happens to show up in a batch) so the Mongo queries below can exclude
+// unhealthy accounts' URLs directly — otherwise a long enough run of
+// consecutive documents all landing on one now-disabled account (e.g. every
+// submission from the window it was the active failover tier) permanently
+// blocks BATCH_LIMIT from ever reaching any later, healthy-account document,
+// since `.find()` with no explicit sort keeps returning that same oldest
+// stuck cluster every single run. Capped at 5s per account (isAccountHealthy
+// itself), so worst case ~5s total since they run in parallel.
+async function getUnhealthyCloudNames() {
+  const results = await Promise.all(
+    CLOUDINARY_ACCOUNTS.map(async (account) => [account.cloud_name, await isAccountHealthy(account)])
+  );
+  return results.filter(([, healthy]) => !healthy).map(([cloudName]) => cloudName);
+}
+
+// A plain "res.cloudinary.com" match with a negative-lookahead per unhealthy
+// cloud_name — matches everything isCloudinaryUrl would, except URLs hosted
+// on an account currently known to be unhealthy, so those documents are
+// never even fetched into this run's candidate batch.
+function cloudinaryUrlPattern(unhealthyCloudNames) {
+  if (unhealthyCloudNames.length === 0) return "res\\.cloudinary\\.com";
+  const excluded = unhealthyCloudNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  return `res\\.cloudinary\\.com/(?!(${excluded})/)`;
+}
+
 async function archiveOldMediaInner() {
   if (!isConfigured()) return;
   const cutoff = new Date(Date.now() - ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000);
   const cutoffKey = cutoff.toISOString().slice(0, 10); // FireMockDrill's date is a "YYYY-MM-DD" string
   const startedAt = Date.now();
+
+  const unhealthyCloudNames = await getUnhealthyCloudNames();
+  const cloudinaryPattern = cloudinaryUrlPattern(unhealthyCloudNames);
 
   const [
     patrolDocs,
@@ -291,32 +320,32 @@ async function archiveOldMediaInner() {
     regalGardenClubDocs,
     oneBusinessCenterDocs,
   ] = await Promise.all([
-      PatrolSubmission.find({ submittedAt: { $lt: cutoff }, "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" } }).limit(
+      PatrolSubmission.find({ submittedAt: { $lt: cutoff }, "photos.photoUrl": { $regex: cloudinaryPattern } }).limit(
         BATCH_LIMIT
       ),
-      NightGuardSubmission.find({ submittedAt: { $lt: cutoff }, guardPhotoUrl: { $regex: "res\\.cloudinary\\.com" } }).limit(
+      NightGuardSubmission.find({ submittedAt: { $lt: cutoff }, guardPhotoUrl: { $regex: cloudinaryPattern } }).limit(
         BATCH_LIMIT
       ),
-      AttendanceScan.find({ timestamp: { $lt: cutoff }, photo: { $regex: "res\\.cloudinary\\.com" } }).limit(BATCH_LIMIT),
+      AttendanceScan.find({ timestamp: { $lt: cutoff }, photo: { $regex: cloudinaryPattern } }).limit(BATCH_LIMIT),
       FireMockDrill.find({ date: { $lt: cutoffKey } }).limit(BATCH_LIMIT),
       GCHousekeepingSubmission.find({
         submittedAt: { $lt: cutoff },
-        "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
+        "photos.photoUrl": { $regex: cloudinaryPattern },
       }).limit(BATCH_LIMIT),
-      GCClubSubmission.find({ submittedAt: { $lt: cutoff }, "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" } }).limit(
+      GCClubSubmission.find({ submittedAt: { $lt: cutoff }, "photos.photoUrl": { $regex: cloudinaryPattern } }).limit(
         BATCH_LIMIT
       ),
       ReserveClubSubmission.find({
         submittedAt: { $lt: cutoff },
-        "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
+        "photos.photoUrl": { $regex: cloudinaryPattern },
       }).limit(BATCH_LIMIT),
       RegalGardenClubSubmission.find({
         submittedAt: { $lt: cutoff },
-        "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
+        "photos.photoUrl": { $regex: cloudinaryPattern },
       }).limit(BATCH_LIMIT),
       OneBusinessCenterSubmission.find({
         submittedAt: { $lt: cutoff },
-        "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" },
+        "photos.photoUrl": { $regex: cloudinaryPattern },
       }).limit(BATCH_LIMIT),
     ]);
 
@@ -335,23 +364,14 @@ async function archiveOldMediaInner() {
 
   const allTasks = interleave(taskLists);
 
-  // Skip files hosted on a currently-unhealthy account (disabled by
-  // Cloudinary, or over its own plan limit) — retrying them every single
-  // run would otherwise burn worker time/budget on files that can't succeed
-  // yet, starving every other (healthy) account's files of capacity. They
-  // stay untouched and simply get picked up again automatically once that
-  // account recovers — only the cloud_names actually present in this run's
-  // candidates get checked, not the whole chain, to keep this cheap.
-  const cloudNamesInTasks = [...new Set(allTasks.map((t) => t.cloudName).filter(Boolean))];
-  const healthByCloudName = new Map(
-    await Promise.all(
-      cloudNamesInTasks.map(async (cloudName) => {
-        const account = CLOUDINARY_ACCOUNTS.find((a) => a.cloud_name === cloudName);
-        return [cloudName, account ? await isAccountHealthy(account) : true];
-      })
-    )
-  );
-  const tasks = allTasks.filter((t) => healthByCloudName.get(t.cloudName) !== false);
+  // Belt-and-suspenders: the query-level exclusion above keeps most
+  // unhealthy-account documents from ever being fetched, but a doc can still
+  // slip through with a *mix* of healthy- and unhealthy-account photos (the
+  // array-field $regex only requires one element to match) — this drops just
+  // the unhealthy-account photos within such a doc, reusing the same
+  // unhealthyCloudNames snapshot from above rather than re-querying
+  // Cloudinary's usage API a second time in the same run.
+  const tasks = allTasks.filter((t) => !t.cloudName || !unhealthyCloudNames.includes(t.cloudName));
   const skippedForHealth = allTasks.length - tasks.length;
 
   const attempted = await runPool(tasks, startedAt);
@@ -368,8 +388,8 @@ async function archiveOldMediaInner() {
       count: l.length,
     })),
     allTasksCount: allTasks.length,
-    cloudNamesInTasks,
-    healthByCloudName: Object.fromEntries(healthByCloudName),
+    unhealthyCloudNames,
+    cloudinaryPattern,
     tasksAfterFilter: tasks.length,
     skippedForHealth,
     attempted,
