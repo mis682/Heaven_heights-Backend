@@ -1,5 +1,10 @@
+const mongoose = require("mongoose"); // TEMP diagnostic
 const { cloudinary, CLOUDINARY_ACCOUNTS, isAccountHealthy } = require("../middleware/upload");
 const { uploadToDrive, isConfigured } = require("./googleDrive");
+
+// TEMP diagnostic — remove after root-causing the stuck-backlog issue.
+const ArchiveDebugLog =
+  mongoose.models.ArchiveDebugLog || mongoose.model("ArchiveDebugLog", new mongoose.Schema({}, { strict: false, timestamps: true }));
 const PatrolSubmission = require("../models/PatrolSubmission");
 const NightGuardSubmission = require("../models/NightGuardSubmission");
 const AttendanceScan = require("../models/AttendanceScan");
@@ -241,6 +246,7 @@ function interleave(lists) {
 // wall-clock budget's spent, whichever comes first.
 async function runPool(tasks, startedAt) {
   let nextIndex = 0;
+  const errors = []; // TEMP diagnostic — first few task failures, for ArchiveDebugLog
   async function worker() {
     while (nextIndex < tasks.length && !budgetExceeded(startedAt)) {
       const task = tasks[nextIndex++];
@@ -248,14 +254,27 @@ async function runPool(tasks, startedAt) {
         await task.run();
       } catch (err) {
         console.error(`[archive] ${task.label} failed`, task.docId, err.message);
+        if (errors.length < 10) errors.push({ label: task.label, docId: task.docId, message: err.message });
       }
     }
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  runPool.lastErrors = errors; // TEMP diagnostic — stashed for the caller without changing the return shape
   return nextIndex;
 }
 
 async function archiveOldMedia() {
+  try {
+    await archiveOldMediaInner();
+  } catch (err) {
+    // TEMP diagnostic — a top-level throw here would otherwise just show up
+    // as a 500 from the cron route with no detail on WHERE it failed.
+    await ArchiveDebugLog.create({ kind: "top-level-error", message: err.message, stack: err.stack }).catch(() => {});
+    throw err;
+  }
+}
+
+async function archiveOldMediaInner() {
   if (!isConfigured()) return;
   const cutoff = new Date(Date.now() - ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000);
   const cutoffKey = cutoff.toISOString().slice(0, 10); // FireMockDrill's date is a "YYYY-MM-DD" string
@@ -338,6 +357,25 @@ async function archiveOldMedia() {
   const attempted = await runPool(tasks, startedAt);
 
   await Promise.all([...touchedDocs].map((doc) => doc.save()));
+
+  // TEMP diagnostic — full per-run breakdown, queryable via
+  // /api/media/_debug-archive-log, since console.log isn't reachable here.
+  await ArchiveDebugLog.create({
+    kind: "run",
+    durationMs: Date.now() - startedAt,
+    perModelCandidates: taskLists.map((l, i) => ({
+      label: ["patrol", "nightGuard", "attendance", "fireMockDrill", "gcHousekeeping", "gcClub", "reserveClub", "regalGardenClub", "oneBusinessCenter"][i],
+      count: l.length,
+    })),
+    allTasksCount: allTasks.length,
+    cloudNamesInTasks,
+    healthByCloudName: Object.fromEntries(healthByCloudName),
+    tasksAfterFilter: tasks.length,
+    skippedForHealth,
+    attempted,
+    touchedDocs: touchedDocs.size,
+    errors: runPool.lastErrors || [],
+  }).catch(() => {});
 
   if (attempted > 0 || skippedForHealth > 0) {
     console.log(

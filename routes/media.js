@@ -95,4 +95,18 @@ router.get(
   })
 );
 
+// TEMP debug route — reads the per-run archival diagnostic log — remove
+// after root-causing the stuck-backlog issue.
+router.get(
+  "/_debug-archive-log",
+  asyncHandler(async (req, res) => {
+    const mongoose = require("mongoose");
+    const ArchiveDebugLog =
+      mongoose.models.ArchiveDebugLog ||
+      mongoose.model("ArchiveDebugLog", new mongoose.Schema({}, { strict: false, timestamps: true }));
+    const docs = await ArchiveDebugLog.find({}).sort({ createdAt: -1 }).limit(10).lean();
+    res.json(docs);
+  })
+);
+
 module.exports = router;
