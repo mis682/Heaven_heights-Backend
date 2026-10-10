@@ -95,4 +95,14 @@ router.get(
   })
 );
 
+// TEMP debug route — confirms the full configured Cloudinary chain —
+// remove after checking.
+router.get(
+  "/_debug-chain-length",
+  asyncHandler(async (req, res) => {
+    const { CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
+    res.json({ count: CLOUDINARY_ACCOUNTS.length, labels: CLOUDINARY_ACCOUNTS.map((a) => a.label) });
+  })
+);
+
 module.exports = router;
