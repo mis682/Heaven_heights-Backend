@@ -95,4 +95,64 @@ router.get(
   })
 );
 
+// TEMP debug route — breaks the archive backlog down by which Cloudinary
+// account (cloud_name) each photo is actually hosted on, per model — so we
+// can tell how much of the backlog is stuck on a disabled account vs. just
+// waiting on a healthy one. Remove after checking.
+router.get(
+  "/_debug-backlog-by-account",
+  asyncHandler(async (req, res) => {
+    const PatrolSubmission = require("../models/PatrolSubmission");
+    const AttendanceScan = require("../models/AttendanceScan");
+    const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
+    const GCClubSubmission = require("../models/GCClubSubmission");
+
+    const ARCHIVE_AFTER_DAYS = 4;
+    const cutoff = new Date(Date.now() - ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000);
+
+    function cloudNameOf(url) {
+      const m = url && url.match(/res\.cloudinary\.com\/([^/]+)\//);
+      return m ? m[1] : "unknown";
+    }
+
+    async function breakdownPhotosArray(Model, dateField) {
+      const docs = await Model.find(
+        { [dateField]: { $lt: cutoff }, "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" } },
+        { photos: 1 }
+      ).lean();
+      const byCloud = {};
+      for (const doc of docs) {
+        for (const p of doc.photos) {
+          if (!p.photoUrl || !p.photoUrl.includes("res.cloudinary.com")) continue;
+          const cn = cloudNameOf(p.photoUrl);
+          byCloud[cn] = (byCloud[cn] || 0) + 1;
+        }
+      }
+      return byCloud;
+    }
+
+    async function breakdownSingleField(Model, fieldName, dateField) {
+      const docs = await Model.find(
+        { [dateField]: { $lt: cutoff }, [fieldName]: { $regex: "res\\.cloudinary\\.com" } },
+        { [fieldName]: 1 }
+      ).lean();
+      const byCloud = {};
+      for (const doc of docs) {
+        const cn = cloudNameOf(doc[fieldName]);
+        byCloud[cn] = (byCloud[cn] || 0) + 1;
+      }
+      return byCloud;
+    }
+
+    const [patrol, attendance, gcHousekeeping, gcClub] = await Promise.all([
+      breakdownPhotosArray(PatrolSubmission, "submittedAt"),
+      breakdownSingleField(AttendanceScan, "photo", "timestamp"),
+      breakdownPhotosArray(GCHousekeepingSubmission, "submittedAt"),
+      breakdownPhotosArray(GCClubSubmission, "submittedAt"),
+    ]);
+
+    res.json({ patrol, attendance, gcHousekeeping, gcClub });
+  })
+);
+
 module.exports = router;
