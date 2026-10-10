@@ -8,6 +8,7 @@ const PERMISSION_MODULES = [
   { key: "reserveClub", label: "Neoteric Reserve Club" },
   { key: "regalGardenClub", label: "Regal Garden Club" },
   { key: "oneBusinessCenter", label: "One Business Center" },
+  { key: "maintenanceUniform", label: "Maintenance Uniform" },
   { key: "maintenanceStaff", label: "Maintenance Staff" },
   { key: "guards", label: "Guard Master Data" },
   { key: "projects", label: "Projects" },

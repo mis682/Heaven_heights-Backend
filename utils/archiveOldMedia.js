@@ -9,6 +9,7 @@ const GCClubSubmission = require("../models/GCClubSubmission");
 const ReserveClubSubmission = require("../models/ReserveClubSubmission");
 const RegalGardenClubSubmission = require("../models/RegalGardenClubSubmission");
 const OneBusinessCenterSubmission = require("../models/OneBusinessCenterSubmission");
+const MaintenanceUniformSubmission = require("../models/MaintenanceUniformSubmission");
 
 // Files older than this move from Cloudinary to Google Drive to free up
 // Cloudinary storage, while everything recent stays on Cloudinary (fast CDN,
@@ -300,6 +301,7 @@ async function archiveOldMedia() {
     reserveClubDocs,
     regalGardenClubDocs,
     oneBusinessCenterDocs,
+    maintenanceUniformDocs,
   ] = await Promise.all([
       PatrolSubmission.find({ submittedAt: { $lt: cutoff }, "photos.photoUrl": { $regex: cloudinaryPattern } }).limit(
         BATCH_LIMIT
@@ -328,6 +330,9 @@ async function archiveOldMedia() {
         submittedAt: { $lt: cutoff },
         "photos.photoUrl": { $regex: cloudinaryPattern },
       }).limit(BATCH_LIMIT),
+      MaintenanceUniformSubmission.find({ submittedAt: { $lt: cutoff }, photoUrl: { $regex: cloudinaryPattern } }).limit(
+        BATCH_LIMIT
+      ),
     ]);
 
   const touchedDocs = new Set();
@@ -341,6 +346,7 @@ async function archiveOldMedia() {
     photosArrayTasks(reserveClubDocs, "reserveClub", touchedDocs),
     photosArrayTasks(regalGardenClubDocs, "regalGardenClub", touchedDocs),
     photosArrayTasks(oneBusinessCenterDocs, "oneBusinessCenter", touchedDocs),
+    singleFieldTasks(maintenanceUniformDocs, "photoUrl", "maintenanceUniform", touchedDocs),
   ];
 
   const allTasks = interleave(taskLists);
