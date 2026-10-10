@@ -95,4 +95,57 @@ router.get(
   })
 );
 
+// TEMP debug route — daily NEW submission counts (not backlog) for Patrol
+// and Attendance, to check whether inflow volume itself has grown (which
+// would explain a growing backlog even with the cron firing normally) —
+// remove after checking.
+router.get(
+  "/_debug-daily-inflow",
+  asyncHandler(async (req, res) => {
+    const PatrolSubmission = require("../models/PatrolSubmission");
+    const AttendanceScan = require("../models/AttendanceScan");
+    const days = parseInt(req.query.days, 10) || 7;
+
+    // Counts PHOTOS (not documents) per day — matches the unit archival and
+    // backlog counts use, so this is a true apples-to-apples comparison.
+    async function countPhotosPerDay(Model, dateField, label) {
+      const result = [];
+      const today = new Date();
+      for (let i = days - 1; i >= 0; i--) {
+        const start = new Date(today);
+        start.setUTCDate(start.getUTCDate() - i);
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 1);
+        const docs = await Model.find({ [dateField]: { $gte: start, $lt: end } }, { photos: 1 }).lean();
+        const count = docs.reduce((sum, d) => sum + (d.photos?.length || 0), 0);
+        result.push({ date: start.toISOString().slice(0, 10), count });
+      }
+      return { label, counts: result };
+    }
+
+    async function countDocsPerDay(Model, dateField, label) {
+      const result = [];
+      const today = new Date();
+      for (let i = days - 1; i >= 0; i--) {
+        const start = new Date(today);
+        start.setUTCDate(start.getUTCDate() - i);
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 1);
+        const count = await Model.countDocuments({ [dateField]: { $gte: start, $lt: end } });
+        result.push({ date: start.toISOString().slice(0, 10), count });
+      }
+      return { label, counts: result };
+    }
+
+    const [patrolSubs, attendanceSubs] = await Promise.all([
+      countPhotosPerDay(PatrolSubmission, "submittedAt", "patrol_photos"),
+      countDocsPerDay(AttendanceScan, "timestamp", "attendance_scans"),
+    ]);
+
+    res.json({ patrolSubs, attendanceSubs });
+  })
+);
+
 module.exports = router;
