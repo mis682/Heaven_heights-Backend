@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const asyncHandler = require("../utils/asyncHandler");
-const { fetchDriveFile } = require("../utils/googleDrive");
+const { fetchDriveFile, countFilesCreatedBetween } = require("../utils/googleDrive");
 const { cloudinary, getMainUploadAuth } = require("../middleware/upload");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
@@ -92,6 +92,22 @@ router.get(
     const { RequestMetric } = require("../utils/requestMetrics");
     const docs = await RequestMetric.find({}).sort({ date: 1, type: 1 }).lean();
     res.json(docs);
+  })
+);
+
+// TEMP debug route — counts files created in the archive Drive folder
+// within a given IST day (defaults to yesterday), i.e. how many photos got
+// archived that day. ?date=YYYY-MM-DD to check a specific day. Remove after
+// checking.
+router.get(
+  "/_debug-archived-count",
+  asyncHandler(async (req, res) => {
+    const dateStr = req.query.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const startIso = `${dateStr}T00:00:00+05:30`;
+    const end = new Date(`${dateStr}T00:00:00+05:30`);
+    end.setUTCDate(end.getUTCDate() + 1);
+    const count = await countFilesCreatedBetween(startIso, end.toISOString());
+    res.json({ date: dateStr, archivedCount: count });
   })
 );
 

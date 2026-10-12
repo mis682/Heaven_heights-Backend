@@ -103,4 +103,25 @@ async function fetchDriveFile(fileId) {
   return res;
 }
 
-module.exports = { uploadToDrive, fetchDriveFile, isConfigured };
+// Counts files created in the archive folder within [startIso, endIso) —
+// each archived photo corresponds to exactly one file created here via
+// uploadToDrive, so this is how many photos got archived in that window.
+async function countFilesCreatedBetween(startIso, endIso, folderId) {
+  const accessToken = await getAccessToken();
+  const targetFolderId = folderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
+  let total = 0;
+  let pageToken;
+  do {
+    const q = `'${targetFolderId}' in parents and createdTime >= '${startIso}' and createdTime < '${endIso}' and trashed = false`;
+    const params = new URLSearchParams({ q, fields: "nextPageToken,files(id)", pageSize: "1000" });
+    if (pageToken) params.set("pageToken", pageToken);
+    const res = await fetchWithTimeout(`${FILES_URL}?${params}`, { headers: { Authorization: `Bearer ${accessToken}` } }, 15000);
+    const data = await res.json();
+    if (!res.ok) throw new Error(`Drive list failed: ${JSON.stringify(data)}`);
+    total += (data.files || []).length;
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  return total;
+}
+
+module.exports = { uploadToDrive, fetchDriveFile, isConfigured, countFilesCreatedBetween };
