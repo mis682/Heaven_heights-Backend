@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const asyncHandler = require("../utils/asyncHandler");
 const { fetchDriveFile } = require("../utils/googleDrive");
-const { cloudinary, getMainUploadAuth, CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
+const { cloudinary, getMainUploadAuth } = require("../middleware/upload");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 const IMAGE_TRANSFORMATION = "w_1600,h_1600,c_limit,q_auto:good,f_auto";
@@ -92,35 +92,6 @@ router.get(
     const { RequestMetric } = require("../utils/requestMetrics");
     const docs = await RequestMetric.find({}).sort({ date: 1, type: 1 }).lean();
     res.json(docs);
-  })
-);
-
-// TEMP debug route — read-only Cloudinary usage check across all accounts.
-// Remove after checking.
-router.get(
-  "/_debug-cloudinary-usage",
-  asyncHandler(async (req, res) => {
-    const results = await Promise.all(
-      CLOUDINARY_ACCOUNTS.map(async (account) => {
-        try {
-          const usage = await cloudinary.api.usage({
-            cloud_name: account.cloud_name,
-            api_key: account.api_key,
-            api_secret: account.api_secret,
-          });
-          return {
-            label: account.label,
-            cloud_name: account.cloud_name,
-            credits_used: usage.credits?.usage,
-            credits_limit: usage.credits?.limit,
-            credits_used_percent: usage.credits?.used_percent,
-          };
-        } catch (err) {
-          return { label: account.label, cloud_name: account.cloud_name, error: err.message };
-        }
-      })
-    );
-    res.json(results);
   })
 );
 
