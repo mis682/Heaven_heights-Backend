@@ -95,10 +95,11 @@ router.get(
   })
 );
 
-// TEMP debug route — read-only Cloudinary usage check across all accounts.
-// Remove after checking.
+// Read-only Cloudinary usage check across every account in the failover
+// chain — kept permanently (not a TEMP route) since this gets checked
+// often; only exposes aggregate usage %, never the credentials themselves.
 router.get(
-  "/_debug-cloudinary-usage",
+  "/cloudinary-usage",
   asyncHandler(async (req, res) => {
     const results = await Promise.all(
       CLOUDINARY_ACCOUNTS.map(async (account) => {
