@@ -43,7 +43,7 @@ function buildMaintenanceUniformReportPdf(report) {
   const pageSize = [totalWidth, PAGE_HEIGHT];
   const doc = new PDFDocument({ size: pageSize, margin: MARGIN });
   const bottomLimit = PAGE_HEIGHT - MARGIN;
-  const title = `Maintenance Uniform — ${report.reportDate}`;
+  const title = `Maintenance Uniform — ${report.reportName} — ${report.reportDate}`;
 
   doc.font("Helvetica-Bold").fontSize(12).fillColor("#111827").text(title, MARGIN, MARGIN - 10);
 

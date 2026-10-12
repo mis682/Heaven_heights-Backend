@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { MAINTENANCE_UNIFORM_STATUS_OPTIONS } = require("../constants/maintenanceUniformStatus");
+const { MAINTENANCE_UNIFORM_STATUS_OPTIONS, MAINTENANCE_UNIFORM_REPORT_FORMATS } = require("../constants/maintenanceUniformStatus");
 
 // Entries are snapshotted (staffId + name/designation/site at the time the
 // report was built) rather than just a staffId reference — a staff member
@@ -16,12 +16,14 @@ const MaintenanceUniformEntrySchema = new mongoose.Schema(
   { _id: false }
 );
 
-// One report per calendar date (not per site/form — every staff member
-// across every site appears as a row in the same single report), grouped by
-// designation when rendered.
+// One report per (calendar date, report name) — the checklist is split
+// across two coordinators, each with their own fixed set of sites (see
+// MAINTENANCE_UNIFORM_REPORT_FORMATS), so the same date has one report per
+// coordinator rather than a single combined one.
 const MaintenanceUniformDailyReportSchema = new mongoose.Schema(
   {
-    reportDate: { type: String, required: true, unique: true },
+    reportDate: { type: String, required: true },
+    reportName: { type: String, required: true, enum: Object.keys(MAINTENANCE_UNIFORM_REPORT_FORMATS) },
     entries: [MaintenanceUniformEntrySchema],
     status: { type: String, enum: ["draft", "submitted"], default: "draft" },
     preparedBy: { type: String, default: "" },
@@ -29,5 +31,7 @@ const MaintenanceUniformDailyReportSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+MaintenanceUniformDailyReportSchema.index({ reportDate: 1, reportName: 1 }, { unique: true });
 
 module.exports = mongoose.model("MaintenanceUniformDailyReport", MaintenanceUniformDailyReportSchema);

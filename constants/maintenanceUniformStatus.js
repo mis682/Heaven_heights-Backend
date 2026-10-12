@@ -29,6 +29,22 @@ const MAINTENANCE_UNIFORM_SITES = [
   "GST",
   "Hyde Park",
   "Milestone",
+  "Neo Meridian",
+  "Regal Garden Club",
 ];
 
-module.exports = { MAINTENANCE_UNIFORM_STATUS_OPTIONS, MAINTENANCE_UNIFORM_DESIGNATIONS, MAINTENANCE_UNIFORM_SITES };
+// The Daily Report is split across two coordinators, each responsible for a
+// fixed set of sites — a coordinator picks their own named report instead of
+// seeing every site's staff at once. Keyed by report name so the Daily
+// Report page's dropdown options are these exact keys.
+const MAINTENANCE_UNIFORM_REPORT_FORMATS = {
+  "Priyanka Report": ["One Business Center", "Garden City", "Garden City Club", "Nature Park"],
+  "Niketa Report": ["Milestone", "Regal Garden", "GST", "Neo Meridian", "Neoteric Reserve", "Hyde Park", "Regal Garden Club"],
+};
+
+module.exports = {
+  MAINTENANCE_UNIFORM_STATUS_OPTIONS,
+  MAINTENANCE_UNIFORM_DESIGNATIONS,
+  MAINTENANCE_UNIFORM_SITES,
+  MAINTENANCE_UNIFORM_REPORT_FORMATS,
+};

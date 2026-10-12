@@ -1,49 +1,58 @@
 const ExcelJS = require("exceljs");
 const MaintenanceUniformDailyReport = require("../models/MaintenanceUniformDailyReport");
 const MaintenanceStaff = require("../models/MaintenanceStaff");
-const { MAINTENANCE_UNIFORM_STATUS_OPTIONS, MAINTENANCE_UNIFORM_DESIGNATIONS } = require("../constants/maintenanceUniformStatus");
+const {
+  MAINTENANCE_UNIFORM_STATUS_OPTIONS,
+  MAINTENANCE_UNIFORM_DESIGNATIONS,
+  MAINTENANCE_UNIFORM_REPORT_FORMATS,
+} = require("../constants/maintenanceUniformStatus");
 const { buildMaintenanceUniformReportPdf } = require("../utils/maintenanceUniformReportPdf");
 
 // Builds the designation-grouped staff list fresh from MaintenanceStaff every
 // time (not cached) — a new hire or a since-removed staff member should show
 // up/disappear immediately, same as the rest of the app's staff-driven pages.
-async function getGroupedStaffList() {
-  const staff = await MaintenanceStaff.find({ designation: { $in: MAINTENANCE_UNIFORM_DESIGNATIONS } })
-    .sort({ name: 1 })
-    .lean();
+// `siteNames`, when given, restricts this to one coordinator's report (see
+// MAINTENANCE_UNIFORM_REPORT_FORMATS) — omitted entirely for the standalone
+// Staff List page, which shows every site at once.
+async function getGroupedStaffList(siteNames) {
+  const filter = { designation: { $in: MAINTENANCE_UNIFORM_DESIGNATIONS } };
+  if (siteNames) filter.siteName = { $in: siteNames };
+  const staff = await MaintenanceStaff.find(filter).sort({ name: 1 }).lean();
   const order = new Map(MAINTENANCE_UNIFORM_DESIGNATIONS.map((d, i) => [d, i]));
   staff.sort((a, b) => order.get(a.designation) - order.get(b.designation));
   return staff.map((s) => ({ staffId: s._id, staffName: s.name, designation: s.designation, siteName: s.siteName }));
 }
 
 exports.meta = async (req, res) => {
-  const staffList = await getGroupedStaffList();
-  res.json({ statusOptions: MAINTENANCE_UNIFORM_STATUS_OPTIONS, staffList });
+  res.json({ statusOptions: MAINTENANCE_UNIFORM_STATUS_OPTIONS, reportFormats: MAINTENANCE_UNIFORM_REPORT_FORMATS });
 };
 
-// Backs the standalone "Staff List" page — same 3 designations, same
-// grouping, just exposed as its own endpoint since that page isn't nested
-// under the daily-report flow.
+// Backs the standalone "Staff List" page (no ?reportName — every site) and
+// the Daily Report page's per-coordinator staff list (?reportName=... scopes
+// it to that report's sites).
 exports.staffList = async (req, res) => {
-  const staffList = await getGroupedStaffList();
+  const { reportName } = req.query;
+  const siteNames = reportName ? MAINTENANCE_UNIFORM_REPORT_FORMATS[reportName] : null;
+  if (reportName && !siteNames) return res.status(400).json({ message: "Unknown reportName" });
+  const staffList = await getGroupedStaffList(siteNames);
   res.json(staffList);
 };
 
 exports.getByDate = async (req, res) => {
-  const { date } = req.query;
-  if (!date) return res.status(400).json({ message: "date is required" });
-  const report = await MaintenanceUniformDailyReport.findOne({ reportDate: date });
+  const { date, reportName } = req.query;
+  if (!date || !reportName) return res.status(400).json({ message: "date and reportName are required" });
+  const report = await MaintenanceUniformDailyReport.findOne({ reportDate: date, reportName });
   if (!report) return res.json(null);
   res.json(report);
 };
 
 exports.saveDraft = async (req, res) => {
-  const { reportDate, entries, preparedBy } = req.body;
-  if (!reportDate) return res.status(400).json({ message: "reportDate is required" });
+  const { reportDate, reportName, entries, preparedBy } = req.body;
+  if (!reportDate || !reportName) return res.status(400).json({ message: "reportDate and reportName are required" });
 
   const report = await MaintenanceUniformDailyReport.findOneAndUpdate(
-    { reportDate, status: "draft" },
-    { reportDate, entries, preparedBy },
+    { reportDate, reportName, status: "draft" },
+    { reportDate, reportName, entries, preparedBy },
     { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
   );
   res.json(report);
@@ -79,8 +88,9 @@ exports.getReport = async (req, res) => {
 };
 
 exports.listSubmitted = async (req, res) => {
-  const { from, to } = req.query;
+  const { from, to, reportName } = req.query;
   const filter = { status: "submitted" };
+  if (reportName) filter.reportName = reportName;
   if (from || to) {
     filter.reportDate = {};
     if (from) filter.reportDate.$gte = from;
@@ -95,6 +105,7 @@ exports.listSubmitted = async (req, res) => {
     return {
       _id: r._id,
       reportDate: r.reportDate,
+      reportName: r.reportName,
       preparedBy: r.preparedBy,
       counts,
       submittedAt: r.submittedAt,
@@ -121,7 +132,10 @@ exports.exportExcel = async (req, res) => {
   sheet.getRow(1).font = { bold: true };
 
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename=maintenance-uniform-${report.reportDate}.xlsx`);
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=maintenance-uniform-${report.reportName.replace(/\s+/g, "-")}-${report.reportDate}.xlsx`
+  );
   await workbook.xlsx.write(res);
   res.end();
 };
@@ -131,7 +145,10 @@ exports.exportPdf = async (req, res) => {
   if (!report) return res.status(404).json({ message: "Report not found" });
 
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename=maintenance-uniform-${report.reportDate}.pdf`);
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=maintenance-uniform-${report.reportName.replace(/\s+/g, "-")}-${report.reportDate}.pdf`
+  );
 
   const doc = buildMaintenanceUniformReportPdf(report);
   doc.pipe(res);
