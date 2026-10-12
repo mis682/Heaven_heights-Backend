@@ -26,6 +26,9 @@ const MAINTENANCE_UNIFORM_SITES = [
   "One Business Center",
   "Neoteric Reserve",
   "Garden City Club",
+  "GST",
+  "Hyde Park",
+  "Milestone",
 ];
 
 module.exports = { MAINTENANCE_UNIFORM_STATUS_OPTIONS, MAINTENANCE_UNIFORM_DESIGNATIONS, MAINTENANCE_UNIFORM_SITES };
