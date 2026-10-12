@@ -95,4 +95,66 @@ router.get(
   })
 );
 
+// TEMP debug route — counts documents still holding the stale Drive-proxy
+// URL host (from the SERVER_BASE_URL misconfiguration) across every model.
+// Remove after the bulk-fix is confirmed.
+router.get(
+  "/_debug-stale-drive-urls",
+  asyncHandler(async (req, res) => {
+    const STALE = "https://heaven-heights.onrender.com/api/media/drive/";
+    const PatrolSubmission = require("../models/PatrolSubmission");
+    const NightGuardSubmission = require("../models/NightGuardSubmission");
+    const AttendanceScan = require("../models/AttendanceScan");
+    const FireMockDrill = require("../models/FireMockDrill");
+    const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
+    const GCClubSubmission = require("../models/GCClubSubmission");
+    const ReserveClubSubmission = require("../models/ReserveClubSubmission");
+    const RegalGardenClubSubmission = require("../models/RegalGardenClubSubmission");
+    const OneBusinessCenterSubmission = require("../models/OneBusinessCenterSubmission");
+    const MaintenanceUniformSubmission = require("../models/MaintenanceUniformSubmission");
+
+    const countArrayField = async (Model) => {
+      const docs = await Model.find({ "photos.photoUrl": { $regex: "^" + STALE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") } })
+        .select("photos.photoUrl")
+        .lean();
+      return docs.reduce((sum, d) => sum + d.photos.filter((p) => p.photoUrl?.startsWith(STALE)).length, 0);
+    };
+    const countSingleField = (Model, field) => Model.countDocuments({ [field]: { $regex: "^" + STALE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") } });
+
+    const [patrol, nightGuard, attendance, fireMockDrillDocs, gcHousekeeping, gcClub, reserveClub, regalGardenClub, oneBusinessCenter, maintenanceUniform] =
+      await Promise.all([
+        countArrayField(PatrolSubmission),
+        countSingleField(NightGuardSubmission, "guardPhotoUrl"),
+        countSingleField(AttendanceScan, "photo"),
+        FireMockDrill.find({
+          $or: [
+            { panelPhoto: { $regex: "^" + STALE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") } },
+            { reportAttachment: { $regex: "^" + STALE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") } },
+            { checklistAttachments: { $regex: "^" + STALE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") } },
+          ],
+        })
+          .select("panelPhoto reportAttachment checklistAttachments")
+          .lean(),
+        countArrayField(GCHousekeepingSubmission),
+        countArrayField(GCClubSubmission),
+        countArrayField(ReserveClubSubmission),
+        countArrayField(RegalGardenClubSubmission),
+        countArrayField(OneBusinessCenterSubmission),
+        countSingleField(MaintenanceUniformSubmission, "photoUrl"),
+      ]);
+
+    const fireMockDrill = fireMockDrillDocs.reduce((sum, d) => {
+      let n = 0;
+      if (d.panelPhoto?.startsWith(STALE)) n += 1;
+      if (d.reportAttachment?.startsWith(STALE)) n += 1;
+      n += d.checklistAttachments.filter((u) => u?.startsWith(STALE)).length;
+      return sum + n;
+    }, 0);
+
+    const byModel = { patrol, nightGuard, attendance, fireMockDrill, gcHousekeeping, gcClub, reserveClub, regalGardenClub, oneBusinessCenter, maintenanceUniform };
+    const total = Object.values(byModel).reduce((a, b) => a + b, 0);
+    res.json({ total, byModel });
+  })
+);
+
 module.exports = router;
