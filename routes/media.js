@@ -157,4 +157,100 @@ router.get(
   })
 );
 
+// TEMP one-off fix route — rewrites the stale SERVER_BASE_URL host
+// (heaven-heights.onrender.com, which isn't even this app) to the real one
+// (heaven-heights-backend.onrender.com) across every Drive-proxy URL
+// already stored in Mongo. Only the host prefix changes — the rest of the
+// URL (path + fileId) is untouched. Requires ?confirm=yes-fix-stale-urls so
+// it can't be triggered by an accidental GET/crawl. Remove after running.
+router.post(
+  "/_fix-stale-drive-urls",
+  asyncHandler(async (req, res) => {
+    if (req.query.confirm !== "yes-fix-stale-urls") {
+      return res.status(400).json({ message: "Pass ?confirm=yes-fix-stale-urls to run this." });
+    }
+
+    const OLD_HOST = "https://heaven-heights.onrender.com";
+    const NEW_HOST = "https://heaven-heights-backend.onrender.com";
+    const escaped = OLD_HOST.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const PatrolSubmission = require("../models/PatrolSubmission");
+    const NightGuardSubmission = require("../models/NightGuardSubmission");
+    const AttendanceScan = require("../models/AttendanceScan");
+    const FireMockDrill = require("../models/FireMockDrill");
+    const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
+    const GCClubSubmission = require("../models/GCClubSubmission");
+    const ReserveClubSubmission = require("../models/ReserveClubSubmission");
+    const RegalGardenClubSubmission = require("../models/RegalGardenClubSubmission");
+    const OneBusinessCenterSubmission = require("../models/OneBusinessCenterSubmission");
+    const MaintenanceUniformSubmission = require("../models/MaintenanceUniformSubmission");
+
+    const replaceExpr = (fieldPath) => ({
+      $cond: [
+        { $eq: [{ $indexOfBytes: [fieldPath, OLD_HOST] }, 0] },
+        { $replaceOne: { input: fieldPath, find: OLD_HOST, replacement: NEW_HOST } },
+        fieldPath,
+      ],
+    });
+
+    const fixArrayField = (Model) =>
+      Model.updateMany({ "photos.photoUrl": { $regex: "^" + escaped } }, [
+        {
+          $set: {
+            photos: {
+              $map: {
+                input: "$photos",
+                as: "p",
+                in: { $mergeObjects: ["$$p", { photoUrl: replaceExpr("$$p.photoUrl") }] },
+              },
+            },
+          },
+        },
+      ]);
+
+    const fixSingleField = (Model, field) =>
+      Model.updateMany({ [field]: { $regex: "^" + escaped } }, [{ $set: { [field]: replaceExpr(`$${field}`) } }]);
+
+    const results = await Promise.all([
+      fixArrayField(PatrolSubmission),
+      fixSingleField(NightGuardSubmission, "guardPhotoUrl"),
+      fixSingleField(AttendanceScan, "photo"),
+      FireMockDrill.updateMany(
+        {
+          $or: [
+            { panelPhoto: { $regex: "^" + escaped } },
+            { reportAttachment: { $regex: "^" + escaped } },
+            { checklistAttachments: { $regex: "^" + escaped } },
+          ],
+        },
+        [
+          {
+            $set: {
+              panelPhoto: replaceExpr("$panelPhoto"),
+              reportAttachment: replaceExpr("$reportAttachment"),
+              checklistAttachments: {
+                $map: { input: "$checklistAttachments", as: "u", in: replaceExpr("$$u") },
+              },
+            },
+          },
+        ]
+      ),
+      fixArrayField(GCHousekeepingSubmission),
+      fixArrayField(GCClubSubmission),
+      fixArrayField(ReserveClubSubmission),
+      fixArrayField(RegalGardenClubSubmission),
+      fixArrayField(OneBusinessCenterSubmission),
+      fixSingleField(MaintenanceUniformSubmission, "photoUrl"),
+    ]);
+
+    const [patrol, nightGuard, attendance, fireMockDrill, gcHousekeeping, gcClub, reserveClub, regalGardenClub, oneBusinessCenter, maintenanceUniform] =
+      results.map((r) => r.modifiedCount);
+
+    res.json({
+      modifiedDocs: { patrol, nightGuard, attendance, fireMockDrill, gcHousekeeping, gcClub, reserveClub, regalGardenClub, oneBusinessCenter, maintenanceUniform },
+      totalModifiedDocs: results.reduce((a, r) => a + r.modifiedCount, 0),
+    });
+  })
+);
+
 module.exports = router;
