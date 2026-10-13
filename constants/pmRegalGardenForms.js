@@ -7,7 +7,23 @@ function photo(label, opts = {}) {
   return { label, type: "photo", ...opts };
 }
 
-const PM_REGAL_GARDEN_FORMS = [];
+const PM_REGAL_GARDEN_FORMS = [
+  {
+    formNumber: 1,
+    label: "Unit Photographs Form",
+    checkpoints: [
+      { label: "Unit No.", type: "text" },
+      photo("Kitchen Photo", { required: false }),
+      photo("Washroom Photo-1", { required: false }),
+      photo("Washroom Photo-2", { required: false }),
+      photo("Washroom Photo-3", { required: false }),
+      photo("Balcony", { required: false }),
+      photo("Photo-1", { required: false }),
+      photo("Photo-2", { required: false }),
+      photo("Photo-3", { required: false }),
+    ],
+  },
+];
 
 function getFormByNumber(formNumber) {
   return PM_REGAL_GARDEN_FORMS.find((f) => f.formNumber === Number(formNumber));
