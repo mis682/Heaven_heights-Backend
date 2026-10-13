@@ -125,23 +125,4 @@ router.get(
   })
 );
 
-// TEMP one-off migration route — drops the old single-field unique index on
-// MaintenanceUniformDailyReport.reportDate and lets Mongoose recreate the new
-// compound {reportDate,reportName} unique index defined in the schema (two
-// coordinators now submit separate reports for the same date). Safe no-op if
-// already synced. Requires ?confirm=yes-sync-indexes. Remove after running.
-router.post(
-  "/_migrate-sync-uniform-report-indexes",
-  asyncHandler(async (req, res) => {
-    if (req.query.confirm !== "yes-sync-indexes") {
-      return res.status(400).json({ message: "Pass ?confirm=yes-sync-indexes to run this." });
-    }
-    const MaintenanceUniformDailyReport = require("../models/MaintenanceUniformDailyReport");
-    const before = await MaintenanceUniformDailyReport.collection.indexes();
-    const result = await MaintenanceUniformDailyReport.syncIndexes();
-    const after = await MaintenanceUniformDailyReport.collection.indexes();
-    res.json({ dropped: result, before, after });
-  })
-);
-
 module.exports = router;
