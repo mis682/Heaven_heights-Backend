@@ -236,4 +236,95 @@ router.get(
   })
 );
 
+// Daily count of NEW photos submitted (regardless of current storage —
+// still-on-Cloudinary or already archived to Drive) across every module
+// combined, over the last N IST days (default 10, excludes today since it's
+// not finished yet) — kept permanently (same reasoning as the other stats
+// routes above) since this gets checked often. ?days=N to change the window.
+router.get(
+  "/uploads-daily",
+  asyncHandler(async (req, res) => {
+    const days = parseInt(req.query.days, 10) || 10;
+    const PatrolSubmission = require("../models/PatrolSubmission");
+    const NightGuardSubmission = require("../models/NightGuardSubmission");
+    const AttendanceScan = require("../models/AttendanceScan");
+    const FireMockDrill = require("../models/FireMockDrill");
+    const GCHousekeepingSubmission = require("../models/GCHousekeepingSubmission");
+    const GCClubSubmission = require("../models/GCClubSubmission");
+    const ReserveClubSubmission = require("../models/ReserveClubSubmission");
+    const RegalGardenClubSubmission = require("../models/RegalGardenClubSubmission");
+    const OneBusinessCenterSubmission = require("../models/OneBusinessCenterSubmission");
+    const NatureParkSubmission = require("../models/NatureParkSubmission");
+    const MaintenanceUniformSubmission = require("../models/MaintenanceUniformSubmission");
+
+    const todayIstStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const istDateStr = (d) => new Date(new Date(d).getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const cutoff = new Date(`${todayIstStr}T00:00:00Z`);
+    cutoff.setUTCDate(cutoff.getUTCDate() - (days + 1)); // +1 day buffer for the IST offset at the edges
+    const cutoffDateKey = cutoff.toISOString().slice(0, 10); // FireMockDrill's date is a "YYYY-MM-DD" string
+
+    const perDay = {};
+    const addCount = (dateStr, model, n) => {
+      if (!n) return;
+      if (!perDay[dateStr]) perDay[dateStr] = { date: dateStr, total: 0, byModel: {} };
+      perDay[dateStr].total += n;
+      perDay[dateStr].byModel[model] = (perDay[dateStr].byModel[model] || 0) + n;
+    };
+
+    const [
+      patrolDocs,
+      nightGuardDocs,
+      attendanceDocs,
+      fireMockDrillDocs,
+      gcHousekeepingDocs,
+      gcClubDocs,
+      reserveClubDocs,
+      regalGardenClubDocs,
+      oneBusinessCenterDocs,
+      natureParkDocs,
+      maintenanceUniformDocs,
+    ] = await Promise.all([
+      PatrolSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      NightGuardSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt guardPhotoUrl").lean(),
+      AttendanceScan.find({ timestamp: { $gte: cutoff } }).select("timestamp photo").lean(),
+      FireMockDrill.find({ date: { $gte: cutoffDateKey } }).select("date panelPhoto reportAttachment checklistAttachments").lean(),
+      GCHousekeepingSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      GCClubSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      ReserveClubSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      RegalGardenClubSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      OneBusinessCenterSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      NatureParkSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      MaintenanceUniformSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photoUrl").lean(),
+    ]);
+
+    patrolDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "patrol", (d.photos || []).length));
+    nightGuardDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "nightGuard", d.guardPhotoUrl ? 1 : 0));
+    attendanceDocs.forEach((d) => addCount(istDateStr(d.timestamp), "attendance", d.photo ? 1 : 0));
+    fireMockDrillDocs.forEach((d) => {
+      let n = 0;
+      if (d.panelPhoto) n += 1;
+      if (d.reportAttachment) n += 1;
+      n += (d.checklistAttachments || []).filter(Boolean).length;
+      addCount(d.date, "fireMockDrill", n);
+    });
+    gcHousekeepingDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "gcHousekeeping", (d.photos || []).length));
+    gcClubDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "gcClub", (d.photos || []).length));
+    reserveClubDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "reserveClub", (d.photos || []).length));
+    regalGardenClubDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "regalGardenClub", (d.photos || []).length));
+    oneBusinessCenterDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "oneBusinessCenter", (d.photos || []).length));
+    natureParkDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "naturePark", (d.photos || []).length));
+    maintenanceUniformDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "maintenanceUniform", d.photoUrl ? 1 : 0));
+
+    const results = [];
+    for (let i = days; i >= 1; i--) {
+      const d = new Date(`${todayIstStr}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      results.push(perDay[dateStr] || { date: dateStr, total: 0, byModel: {} });
+    }
+    res.json(results);
+  })
+);
+
 module.exports = router;
