@@ -22,6 +22,30 @@ const NATURE_PARK_FORMS = [
       "Basketball Court Pic",
     ].map((label) => photo(label)),
   },
+  {
+    formNumber: 2,
+    label: "Nature Park-2",
+    checkpoints: [
+      "Centre Fountain Pic",
+      "Western Plaza Fountain Pic",
+      "Road Pic",
+      "Central Park Bio Pond Pic",
+      "Northern Park Bio Pond Pic",
+      "Northern Park Tile Pic",
+      "Central Park Tile Pic",
+      "Western Plaza Tile Pic",
+      "Kids Play Area-1 Pic",
+      "Kids Play Area-2 Pic",
+      "Northern Park Clean Pic",
+      "Central Park Clean Pic",
+      "Western Plaza Clean Pic",
+      "Main Gate Fountain Pic",
+      "Central Park Raindance Pic",
+      "Northern Park Raindance Pic",
+      "Basketball Court Clean Pic",
+      "Uniform Pic",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
