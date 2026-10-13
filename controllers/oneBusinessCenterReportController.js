@@ -3,6 +3,8 @@ const OneBusinessCenterDailyReport = require("../models/OneBusinessCenterDailyRe
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { ONE_BUSINESS_CENTER_FORMS, getFormByNumber } = require("../constants/oneBusinessCenterForms");
 const { buildOneBusinessCenterReportPdf } = require("../utils/oneBusinessCenterReportPdf");
+const { computeChecklistKpi } = require("../utils/checklistKpi");
+const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 exports.meta = async (req, res) => {
@@ -132,6 +134,41 @@ exports.exportPdf = async (req, res) => {
   const __t0 = process.hrtime.bigint(); // TEMP diagnostic
   const doc = buildOneBusinessCenterReportPdf(report, form);
   recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
+  doc.pipe(res);
+  doc.end();
+};
+
+// Compliance KPI, grouped by checkpoint, over a date range (optionally
+// scoped to one form) — see utils/checklistKpi.js for what counts as "OK"
+// vs "Not OK".
+exports.kpi = async (req, res) => {
+  const { from, to, formNumber } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(OneBusinessCenterDailyReport, {
+    from,
+    to,
+    extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
+    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    groupKey: (e) => e.checkpointLabel,
+    groupLabel: (e) => e.checkpointLabel,
+  });
+  res.json({ rows });
+};
+
+exports.kpiExportPdf = async (req, res) => {
+  const { from, to, formNumber } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(OneBusinessCenterDailyReport, {
+    from,
+    to,
+    extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
+    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    groupKey: (e) => e.checkpointLabel,
+    groupLabel: (e) => e.checkpointLabel,
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=one-business-center-kpi-${from}-to-${to}.pdf`);
+  const doc = buildChecklistKpiPdf("One Business Center — KPI", from, to, rows);
   doc.pipe(res);
   doc.end();
 };

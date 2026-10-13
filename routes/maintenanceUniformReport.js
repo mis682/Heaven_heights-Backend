@@ -7,6 +7,8 @@ router.get("/meta", asyncHandler(ctrl.meta));
 router.get("/staff-list", asyncHandler(ctrl.staffList));
 router.get("/by-date", asyncHandler(ctrl.getByDate));
 router.get("/submitted", asyncHandler(ctrl.listSubmitted));
+router.get("/kpi", asyncHandler(ctrl.kpi));
+router.get("/kpi/export-pdf", asyncHandler(ctrl.kpiExportPdf));
 router.post("/draft", asyncHandler(ctrl.saveDraft));
 router.post("/:id/submit", asyncHandler(ctrl.submitReport));
 router.post("/:id/unlock", asyncHandler(ctrl.unlockReport));

@@ -3,6 +3,8 @@ const NatureParkDailyReport = require("../models/NatureParkDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { NATURE_PARK_FORMS, getFormByNumber } = require("../constants/natureParkForms");
 const { buildNatureParkReportPdf } = require("../utils/natureParkReportPdf");
+const { computeChecklistKpi } = require("../utils/checklistKpi");
+const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
 exports.meta = async (req, res) => {
   res.json({
@@ -129,6 +131,41 @@ exports.exportPdf = async (req, res) => {
   );
 
   const doc = buildNatureParkReportPdf(report, form);
+  doc.pipe(res);
+  doc.end();
+};
+
+// Compliance KPI, grouped by checkpoint, over a date range (optionally
+// scoped to one form) — see utils/checklistKpi.js for what counts as "OK"
+// vs "Not OK".
+exports.kpi = async (req, res) => {
+  const { from, to, formNumber } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(NatureParkDailyReport, {
+    from,
+    to,
+    extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
+    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    groupKey: (e) => e.checkpointLabel,
+    groupLabel: (e) => e.checkpointLabel,
+  });
+  res.json({ rows });
+};
+
+exports.kpiExportPdf = async (req, res) => {
+  const { from, to, formNumber } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(NatureParkDailyReport, {
+    from,
+    to,
+    extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
+    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    groupKey: (e) => e.checkpointLabel,
+    groupLabel: (e) => e.checkpointLabel,
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=nature-park-kpi-${from}-to-${to}.pdf`);
+  const doc = buildChecklistKpiPdf("Nature Park — KPI", from, to, rows);
   doc.pipe(res);
   doc.end();
 };

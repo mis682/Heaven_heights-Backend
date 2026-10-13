@@ -2,6 +2,8 @@ const ExcelJS = require("exceljs");
 const GCHousekeepingDailyReport = require("../models/GCHousekeepingDailyReport");
 const { GC_HOUSEKEEPING_STATUS_OPTIONS } = require("../constants/gcHousekeepingReportStatus");
 const { buildGCHousekeepingReportPdf } = require("../utils/gcHousekeepingReportPdf");
+const { computeChecklistKpi } = require("../utils/checklistKpi");
+const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 // Garden City Housekeeping always covers checkpoints 1-150 (the same range
@@ -120,6 +122,38 @@ exports.exportPdf = async (req, res) => {
   const __t0 = process.hrtime.bigint(); // TEMP diagnostic
   const doc = buildGCHousekeepingReportPdf(report);
   recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
+  doc.pipe(res);
+  doc.end();
+};
+
+// Compliance KPI, grouped by checkpoint, over a date range — see
+// utils/checklistKpi.js for what counts as "OK" vs "Not OK".
+exports.kpi = async (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(GCHousekeepingDailyReport, {
+    from,
+    to,
+    goodStatus: GC_HOUSEKEEPING_STATUS_OPTIONS[0],
+    groupKey: (e) => e.checkpointId,
+    groupLabel: (e) => `Checkpoint-${e.checkpointId}`,
+  });
+  res.json({ rows });
+};
+
+exports.kpiExportPdf = async (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(GCHousekeepingDailyReport, {
+    from,
+    to,
+    goodStatus: GC_HOUSEKEEPING_STATUS_OPTIONS[0],
+    groupKey: (e) => e.checkpointId,
+    groupLabel: (e) => `Checkpoint-${e.checkpointId}`,
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=gc-housekeeping-kpi-${from}-to-${to}.pdf`);
+  const doc = buildChecklistKpiPdf("Garden City Housekeeping — KPI", from, to, rows);
   doc.pipe(res);
   doc.end();
 };

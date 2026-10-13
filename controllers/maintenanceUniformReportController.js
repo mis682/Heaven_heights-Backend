@@ -7,6 +7,8 @@ const {
   MAINTENANCE_UNIFORM_REPORT_FORMATS,
 } = require("../constants/maintenanceUniformStatus");
 const { buildMaintenanceUniformReportPdf } = require("../utils/maintenanceUniformReportPdf");
+const { computeChecklistKpi } = require("../utils/checklistKpi");
+const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
 // Builds the designation-grouped staff list fresh from MaintenanceStaff every
 // time (not cached) — a new hire or a since-removed staff member should show
@@ -151,6 +153,41 @@ exports.exportPdf = async (req, res) => {
   );
 
   const doc = buildMaintenanceUniformReportPdf(report);
+  doc.pipe(res);
+  doc.end();
+};
+
+// Compliance KPI, grouped by staff member, over a date range (optionally
+// scoped to one coordinator's report) — see utils/checklistKpi.js for what
+// counts as "OK" vs "Not OK".
+exports.kpi = async (req, res) => {
+  const { from, to, reportName } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(MaintenanceUniformDailyReport, {
+    from,
+    to,
+    extraFilter: reportName ? { reportName } : {},
+    goodStatus: MAINTENANCE_UNIFORM_STATUS_OPTIONS[0],
+    groupKey: (e) => String(e.staffId || e.staffName),
+    groupLabel: (e) => `${e.staffName} (${e.siteName})`,
+  });
+  res.json({ rows });
+};
+
+exports.kpiExportPdf = async (req, res) => {
+  const { from, to, reportName } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(MaintenanceUniformDailyReport, {
+    from,
+    to,
+    extraFilter: reportName ? { reportName } : {},
+    goodStatus: MAINTENANCE_UNIFORM_STATUS_OPTIONS[0],
+    groupKey: (e) => String(e.staffId || e.staffName),
+    groupLabel: (e) => `${e.staffName} (${e.siteName})`,
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=maintenance-uniform-kpi-${from}-to-${to}.pdf`);
+  const doc = buildChecklistKpiPdf("Maintenance Uniform — KPI", from, to, rows);
   doc.pipe(res);
   doc.end();
 };
