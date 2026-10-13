@@ -7,7 +7,13 @@ function photo(label, opts = {}) {
   return { label, type: "photo", ...opts };
 }
 
-const REGAL_GARDEN_FORMS = [];
+const REGAL_GARDEN_FORMS = [
+  {
+    formNumber: 1,
+    label: "Regal Garden Cleaning Checkpoint",
+    checkpoints: Array.from({ length: 12 }, (_, i) => `Checkpoint ${i + 1}`).map((label) => photo(label)),
+  },
+];
 
 function getFormByNumber(formNumber) {
   return REGAL_GARDEN_FORMS.find((f) => f.formNumber === Number(formNumber));
