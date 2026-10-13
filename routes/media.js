@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const asyncHandler = require("../utils/asyncHandler");
-const { fetchDriveFile } = require("../utils/googleDrive");
+const { fetchDriveFile, countFilesCreatedBetween } = require("../utils/googleDrive");
 const { cloudinary, getMainUploadAuth, CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
@@ -209,6 +209,30 @@ router.get(
     };
     const total = Object.values(byModel).reduce((a, b) => a + b, 0);
     res.json({ total, byModel });
+  })
+);
+
+// Daily count of photos archived to Drive over the last N IST days (default
+// 10, excludes today since it's not finished yet) — kept permanently (same
+// reasoning as /cloudinary-usage and /backlog) since this gets checked
+// often. ?days=N to change the window.
+router.get(
+  "/archived-daily",
+  asyncHandler(async (req, res) => {
+    const days = parseInt(req.query.days, 10) || 10;
+    const todayIstStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const results = [];
+    for (let i = days; i >= 1; i--) {
+      const d = new Date(`${todayIstStr}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const startIso = `${dateStr}T00:00:00+05:30`;
+      const end = new Date(`${dateStr}T00:00:00+05:30`);
+      end.setUTCDate(end.getUTCDate() + 1);
+      const count = await countFilesCreatedBetween(startIso, end.toISOString());
+      results.push({ date: dateStr, archivedCount: count });
+    }
+    res.json(results);
   })
 );
 
