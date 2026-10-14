@@ -56,7 +56,7 @@ function buildPmRegalGardenReportPdf(report, form) {
       drawHeaderRow(doc, MARGIN, y, report.reportDate);
       y += HEADER_HEIGHT;
     }
-    drawDataRow(doc, [e.checkpointLabel, e.status || "—"], MARGIN, y);
+    drawDataRow(doc, [e.checkpointLabel, e.value || e.status || "—"], MARGIN, y);
     y += ROW_HEIGHT;
   });
 

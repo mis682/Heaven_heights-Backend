@@ -10,7 +10,7 @@ exports.meta = async (req, res) => {
     forms: PM_EDEN_GARDEN_FORMS.map((f) => ({
       formNumber: f.formNumber,
       label: f.label,
-      checkpoints: f.checkpoints.map((c) => c.label),
+      checkpoints: f.checkpoints.map((c) => ({ label: c.label, type: c.type || "photo" })),
     })),
   });
 };
@@ -39,7 +39,7 @@ exports.submitReport = async (req, res) => {
   const report = await PmEdenGardenDailyReport.findById(req.params.id);
   if (!report) return res.status(404).json({ message: "Report not found" });
   if (report.status === "submitted") return res.status(400).json({ message: "Report already submitted" });
-  const hasAnyEntry = (report.entries || []).some((e) => e.status);
+  const hasAnyEntry = (report.entries || []).some((e) => e.status || e.value);
   if (!hasAnyEntry) return res.status(400).json({ message: "Fill at least one row before submitting" });
 
   report.status = "submitted";
@@ -104,7 +104,7 @@ exports.exportExcel = async (req, res) => {
     { header: report.reportDate, key: "status", width: 20 },
   ];
   report.entries.forEach((e) => {
-    sheet.addRow({ checkpoint: e.checkpointLabel, status: e.status });
+    sheet.addRow({ checkpoint: e.checkpointLabel, status: e.value || e.status });
   });
   sheet.getRow(1).font = { bold: true };
 

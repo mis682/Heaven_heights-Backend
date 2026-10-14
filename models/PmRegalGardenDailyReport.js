@@ -5,6 +5,7 @@ const PmRegalGardenEntrySchema = new mongoose.Schema(
   {
     checkpointLabel: { type: String, required: true },
     status: { type: String, enum: [...RESERVE_REGAL_CLUB_STATUS_OPTIONS, ""], default: "" },
+    value: { type: String, default: "" },
   },
   { _id: false }
 );
