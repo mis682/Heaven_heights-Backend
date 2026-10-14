@@ -3,6 +3,7 @@ const router = express.Router();
 const asyncHandler = require("../utils/asyncHandler");
 const { fetchDriveFile, countFilesCreatedBetween } = require("../utils/googleDrive");
 const { cloudinary, getMainUploadAuth, CLOUDINARY_ACCOUNTS } = require("../middleware/upload");
+const CloudinaryAlertState = require("../models/CloudinaryAlertState");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
 const IMAGE_TRANSFORMATION = "w_1600,h_1600,c_limit,q_auto:good,f_auto";
@@ -121,7 +122,9 @@ router.get(
         }
       })
     );
-    res.json(results);
+    const state = await CloudinaryAlertState.findOne().lean();
+    const activeAccount = CLOUDINARY_ACCOUNTS[state?.activeAccountIndex || 0]?.label || "Primary";
+    res.json({ activeAccount, accounts: results });
   })
 );
 
