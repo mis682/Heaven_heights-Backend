@@ -65,6 +65,10 @@ const FALLBACK_THRESHOLD = 90;
 // other (healthy) account's files of processing time too.
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
 
+// Returns `error` alongside `healthy` so callers can log *why* a tier was
+// skipped — a failed check (network blip, timeout, disabled cloud_name) is
+// treated as unhealthy the same as genuinely crossing FALLBACK_THRESHOLD,
+// but those are very different situations to diagnose after the fact.
 async function isAccountHealthy(account) {
   try {
     const usage = await Promise.race([
@@ -75,10 +79,21 @@ async function isAccountHealthy(account) {
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error("health check timed out")), HEALTH_CHECK_TIMEOUT_MS)),
     ]);
-    return (usage.credits?.used_percent ?? 0) < FALLBACK_THRESHOLD;
-  } catch {
-    return false; // unreachable, timed out, or disabled — treat the same: don't use this account right now
+    return { healthy: (usage.credits?.used_percent ?? 0) < FALLBACK_THRESHOLD, error: null };
+  } catch (err) {
+    return { healthy: false, error: err?.message || String(err) };
   }
+}
+
+// Appends to CloudinaryAlertState's capped failure log and emits a console
+// line (visible in Render's log viewer) — shared by this file's real-time
+// check and cloudinaryUsageAlert.js's periodic one.
+function recordHealthCheckFailure(state, label, error) {
+  console.error(`[Cloudinary] "${label}" health check failed: ${error}`);
+  state.recentHealthCheckFailures = [{ account: label, error, at: new Date() }, ...(state.recentHealthCheckFailures || [])].slice(
+    0,
+    20
+  );
 }
 
 // cloudinaryUsageAlert.js's periodic job only runs every 12h — if an account
@@ -99,7 +114,10 @@ async function ensureActiveAccountHealthy(state) {
   lastHealthCheckAt = now;
 
   let idx = currentIndex;
-  while (idx < CLOUDINARY_ACCOUNTS.length - 1 && !(await isAccountHealthy(CLOUDINARY_ACCOUNTS[idx]))) {
+  while (idx < CLOUDINARY_ACCOUNTS.length - 1) {
+    const { healthy, error } = await isAccountHealthy(CLOUDINARY_ACCOUNTS[idx]);
+    if (healthy) break;
+    if (error) recordHealthCheckFailure(state, CLOUDINARY_ACCOUNTS[idx].label, error);
     idx += 1;
   }
   if (idx !== currentIndex) {
@@ -270,4 +288,5 @@ module.exports = {
   getMainUploadAuth,
   FALLBACK_THRESHOLD,
   isAccountHealthy,
+  recordHealthCheckFailure,
 };

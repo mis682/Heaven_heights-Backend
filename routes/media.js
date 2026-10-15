@@ -124,7 +124,7 @@ router.get(
     );
     const state = await CloudinaryAlertState.findOne().lean();
     const activeAccount = CLOUDINARY_ACCOUNTS[state?.activeAccountIndex || 0]?.label || "Primary";
-    res.json({ activeAccount, accounts: results });
+    res.json({ activeAccount, accounts: results, recentHealthCheckFailures: state?.recentHealthCheckFailures || [] });
   })
 );
 

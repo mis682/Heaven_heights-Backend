@@ -1,4 +1,4 @@
-const { cloudinary, CLOUDINARY_ACCOUNTS, FALLBACK_THRESHOLD } = require("../middleware/upload");
+const { cloudinary, CLOUDINARY_ACCOUNTS, FALLBACK_THRESHOLD, recordHealthCheckFailure } = require("../middleware/upload");
 const CloudinaryAlertState = require("../models/CloudinaryAlertState");
 const { sendAlertEmail } = require("./mailer");
 
@@ -12,14 +12,17 @@ function toMB(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1);
 }
 
-async function getUsage(account) {
+async function getUsage(account, state) {
   try {
     return await cloudinary.api.usage({
       cloud_name: account.cloud_name,
       api_key: account.api_key,
       api_secret: account.api_secret,
     });
-  } catch {
+  } catch (err) {
+    const message = err?.message || String(err);
+    if (state) recordHealthCheckFailure(state, account.label, message);
+    else console.error(`[Cloudinary] "${account.label}" usage fetch failed: ${message}`);
     return null; // transient Cloudinary API hiccup — try again next cycle
   }
 }
@@ -92,7 +95,7 @@ async function checkCloudinaryUsageAndAlert() {
   } else {
     newIndex = activeIndex;
     while (newIndex < CLOUDINARY_ACCOUNTS.length - 1) {
-      const usage = newIndex === 0 ? primaryUsage : await getUsage(CLOUDINARY_ACCOUNTS[newIndex]);
+      const usage = newIndex === 0 ? primaryUsage : await getUsage(CLOUDINARY_ACCOUNTS[newIndex], state);
       const usedPct = usage ? usage.credits?.used_percent ?? 0 : 100;
       if (usedPct < FALLBACK_THRESHOLD) break;
       newIndex += 1;
