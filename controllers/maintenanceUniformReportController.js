@@ -40,21 +40,25 @@ exports.staffList = async (req, res) => {
   res.json(staffList);
 };
 
+// Only ever reads/writes the combined (reportName: "") report for a date —
+// the old per-coordinator Priyanka/Niketa reports keep their real
+// reportName and are left alone, reachable only through the Admin Report
+// view's history, never through this single-report flow.
 exports.getByDate = async (req, res) => {
-  const { date, reportName } = req.query;
-  if (!date || !reportName) return res.status(400).json({ message: "date and reportName are required" });
-  const report = await MaintenanceUniformDailyReport.findOne({ reportDate: date, reportName });
+  const { date } = req.query;
+  if (!date) return res.status(400).json({ message: "date is required" });
+  const report = await MaintenanceUniformDailyReport.findOne({ reportDate: date, reportName: "" });
   if (!report) return res.json(null);
   res.json(report);
 };
 
 exports.saveDraft = async (req, res) => {
-  const { reportDate, reportName, entries, preparedBy } = req.body;
-  if (!reportDate || !reportName) return res.status(400).json({ message: "reportDate and reportName are required" });
+  const { reportDate, entries, preparedBy } = req.body;
+  if (!reportDate) return res.status(400).json({ message: "reportDate is required" });
 
   const report = await MaintenanceUniformDailyReport.findOneAndUpdate(
-    { reportDate, reportName, status: "draft" },
-    { reportDate, reportName, entries, preparedBy },
+    { reportDate, reportName: "", status: "draft" },
+    { reportDate, reportName: "", entries, preparedBy },
     { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
   );
   res.json(report);
@@ -133,11 +137,9 @@ exports.exportExcel = async (req, res) => {
   });
   sheet.getRow(1).font = { bold: true };
 
+  const namePart = report.reportName ? `${report.reportName.replace(/\s+/g, "-")}-` : "";
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename=maintenance-uniform-${report.reportName.replace(/\s+/g, "-")}-${report.reportDate}.xlsx`
-  );
+  res.setHeader("Content-Disposition", `attachment; filename=maintenance-uniform-${namePart}${report.reportDate}.xlsx`);
   await workbook.xlsx.write(res);
   res.end();
 };
@@ -146,11 +148,9 @@ exports.exportPdf = async (req, res) => {
   const report = await MaintenanceUniformDailyReport.findById(req.params.id);
   if (!report) return res.status(404).json({ message: "Report not found" });
 
+  const namePart = report.reportName ? `${report.reportName.replace(/\s+/g, "-")}-` : "";
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename=maintenance-uniform-${report.reportName.replace(/\s+/g, "-")}-${report.reportDate}.pdf`
-  );
+  res.setHeader("Content-Disposition", `attachment; filename=maintenance-uniform-${namePart}${report.reportDate}.pdf`);
 
   const doc = buildMaintenanceUniformReportPdf(report);
   doc.pipe(res);

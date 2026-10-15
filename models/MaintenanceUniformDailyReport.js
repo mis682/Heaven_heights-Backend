@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { MAINTENANCE_UNIFORM_STATUS_OPTIONS, MAINTENANCE_UNIFORM_REPORT_FORMATS } = require("../constants/maintenanceUniformStatus");
+const { MAINTENANCE_UNIFORM_STATUS_OPTIONS } = require("../constants/maintenanceUniformStatus");
 
 // Entries are snapshotted (staffId + name/designation/site at the time the
 // report was built) rather than just a staffId reference — a staff member
@@ -16,14 +16,17 @@ const MaintenanceUniformEntrySchema = new mongoose.Schema(
   { _id: false }
 );
 
-// One report per (calendar date, report name) — the checklist is split
-// across two coordinators, each with their own fixed set of sites (see
-// MAINTENANCE_UNIFORM_REPORT_FORMATS), so the same date has one report per
-// coordinator rather than a single combined one.
+// One combined report per calendar date, covering every site at once —
+// `reportName` used to split this across two coordinators (each with their
+// own fixed set of sites, see MAINTENANCE_UNIFORM_REPORT_FORMATS); that
+// split was reverted, so new reports always leave it as "" (one coordinator
+// handles every site's responses in a single report now). The field and its
+// index are kept rather than dropped so the old Priyanka/Niketa-era reports
+// stay valid, readable history instead of needing a data migration.
 const MaintenanceUniformDailyReportSchema = new mongoose.Schema(
   {
     reportDate: { type: String, required: true },
-    reportName: { type: String, required: true, enum: Object.keys(MAINTENANCE_UNIFORM_REPORT_FORMATS) },
+    reportName: { type: String, default: "" },
     entries: [MaintenanceUniformEntrySchema],
     status: { type: String, enum: ["draft", "submitted"], default: "draft" },
     preparedBy: { type: String, default: "" },
