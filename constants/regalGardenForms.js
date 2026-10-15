@@ -41,6 +41,28 @@ const REGAL_GARDEN_FORMS = [
       "Pump Room (Basement 2)",
     ].map((label) => photo(label)),
   },
+  {
+    formNumber: 4,
+    label: "RG-Commercial Form",
+    checkpoints: [
+      "1st Floor Corridor-1",
+      "1st Floor Corridor-2",
+      "1st Floor Dustbin",
+      "1st Floor Male Washroom",
+      "1st Floor Female Washroom",
+      "2nd Floor Corridor-1",
+      "2nd Floor Corridor-2",
+      "2nd Floor Dustbin",
+      "2nd Floor Male Washroom",
+      "2nd Floor Female Washroom",
+      "Commercial Lift",
+      "Escalator",
+      "Outer Stairs",
+      "Parking",
+      "Fountain-Regal Centre",
+      "Fountain-Regal Garden",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
