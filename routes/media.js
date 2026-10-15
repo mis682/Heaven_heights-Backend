@@ -146,6 +146,10 @@ router.get(
     const OneBusinessCenterSubmission = require("../models/OneBusinessCenterSubmission");
     const NatureParkSubmission = require("../models/NatureParkSubmission");
     const MaintenanceUniformSubmission = require("../models/MaintenanceUniformSubmission");
+    const RegalGardenSubmission = require("../models/RegalGardenSubmission");
+    const PmRegalGardenSubmission = require("../models/PmRegalGardenSubmission");
+    const PmEdenGardenSubmission = require("../models/PmEdenGardenSubmission");
+    const PmGardenCitySubmission = require("../models/PmGardenCitySubmission");
 
     const countArrayField = async (Model) => {
       const docs = await Model.find({ "photos.photoUrl": { $regex: "res\\.cloudinary\\.com" } })
@@ -167,6 +171,10 @@ router.get(
       oneBusinessCenter,
       naturePark,
       maintenanceUniform,
+      regalGarden,
+      pmRegalGarden,
+      pmEdenGarden,
+      pmGardenCity,
     ] = await Promise.all([
       countArrayField(PatrolSubmission),
       countSingleField(NightGuardSubmission, "guardPhotoUrl"),
@@ -187,6 +195,10 @@ router.get(
       countArrayField(OneBusinessCenterSubmission),
       countArrayField(NatureParkSubmission),
       countSingleField(MaintenanceUniformSubmission, "photoUrl"),
+      countArrayField(RegalGardenSubmission),
+      countArrayField(PmRegalGardenSubmission),
+      countArrayField(PmEdenGardenSubmission),
+      countArrayField(PmGardenCitySubmission),
     ]);
 
     const fireMockDrill = fireMockDrillDocs.reduce((sum, d) => {
@@ -209,6 +221,10 @@ router.get(
       oneBusinessCenter,
       naturePark,
       maintenanceUniform,
+      regalGarden,
+      pmRegalGarden,
+      pmEdenGarden,
+      pmGardenCity,
     };
     const total = Object.values(byModel).reduce((a, b) => a + b, 0);
     res.json({ total, byModel });
@@ -259,6 +275,10 @@ router.get(
     const OneBusinessCenterSubmission = require("../models/OneBusinessCenterSubmission");
     const NatureParkSubmission = require("../models/NatureParkSubmission");
     const MaintenanceUniformSubmission = require("../models/MaintenanceUniformSubmission");
+    const RegalGardenSubmission = require("../models/RegalGardenSubmission");
+    const PmRegalGardenSubmission = require("../models/PmRegalGardenSubmission");
+    const PmEdenGardenSubmission = require("../models/PmEdenGardenSubmission");
+    const PmGardenCitySubmission = require("../models/PmGardenCitySubmission");
 
     const todayIstStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const istDateStr = (d) => new Date(new Date(d).getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -287,6 +307,10 @@ router.get(
       oneBusinessCenterDocs,
       natureParkDocs,
       maintenanceUniformDocs,
+      regalGardenDocs,
+      pmRegalGardenDocs,
+      pmEdenGardenDocs,
+      pmGardenCityDocs,
     ] = await Promise.all([
       PatrolSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       NightGuardSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt guardPhotoUrl").lean(),
@@ -299,6 +323,10 @@ router.get(
       OneBusinessCenterSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       NatureParkSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       MaintenanceUniformSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photoUrl").lean(),
+      RegalGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      PmRegalGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      PmEdenGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      PmGardenCitySubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
     ]);
 
     patrolDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "patrol", (d.photos || []).length));
@@ -318,6 +346,10 @@ router.get(
     oneBusinessCenterDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "oneBusinessCenter", (d.photos || []).length));
     natureParkDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "naturePark", (d.photos || []).length));
     maintenanceUniformDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "maintenanceUniform", d.photoUrl ? 1 : 0));
+    regalGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "regalGarden", (d.photos || []).length));
+    pmRegalGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "pmRegalGarden", (d.photos || []).length));
+    pmEdenGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "pmEdenGarden", (d.photos || []).length));
+    pmGardenCityDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "pmGardenCity", (d.photos || []).length));
 
     const results = [];
     for (let i = days; i >= 1; i--) {
