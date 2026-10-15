@@ -21,6 +21,26 @@ const REGAL_GARDEN_FORMS = [
       return [photo(`Corridor (${floor}${suffix} Floor)`), photo(`Dustbin (${floor}${suffix} Floor)`)];
     }),
   },
+  {
+    formNumber: 3,
+    label: "RG-2",
+    checkpoints: [
+      "Reception Area (Ground Floor)",
+      "Male Washroom (Ground Floor)",
+      "Female Washroom (Ground Floor)",
+      "Gallery Photo (Ground Floor)",
+      "Service Lift",
+      "Passenger Lift-1",
+      "Passenger Lift-2",
+      "Parking-1 (Basement 1)",
+      "Parking-2 (Basement 1)",
+      "Parking-3 (Basement 1)",
+      "Parking-1 (Basement 2)",
+      "Parking-2 (Basement 2)",
+      "Fire Room (Basement 2)",
+      "Pump Room (Basement 2)",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
