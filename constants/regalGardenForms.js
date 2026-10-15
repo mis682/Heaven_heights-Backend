@@ -13,6 +13,14 @@ const REGAL_GARDEN_FORMS = [
     label: "Regal Garden Cleaning Checkpoint",
     checkpoints: Array.from({ length: 12 }, (_, i) => `Checkpoint ${i + 1}`).map((label) => photo(label)),
   },
+  {
+    formNumber: 2,
+    label: "RG-1",
+    checkpoints: Array.from({ length: 13 }, (_, i) => i + 3).flatMap((floor) => {
+      const suffix = floor === 3 ? "rd" : "th";
+      return [photo(`Corridor (${floor}${suffix} Floor)`), photo(`Dustbin (${floor}${suffix} Floor)`)];
+    }),
+  },
 ];
 
 function getFormByNumber(formNumber) {
