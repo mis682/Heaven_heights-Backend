@@ -10,6 +10,7 @@ const PERMISSION_MODULES = [
   { key: "oneBusinessCenter", label: "One Business Center" },
   { key: "naturePark", label: "Nature Park" },
   { key: "regalGarden", label: "Regal Garden" },
+  { key: "edenGarden", label: "Eden Garden" },
   { key: "pmRegalGarden", label: "Regal Garden" },
   { key: "pmEdenGarden", label: "Eden Garden" },
   { key: "pmGardenCity", label: "Garden City" },
