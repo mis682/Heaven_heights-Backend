@@ -41,7 +41,7 @@ function buildPmEdenGardenReportPdf(report, form) {
   const pageSize = [totalWidth, PAGE_HEIGHT];
   const doc = new PDFDocument({ size: pageSize, margin: MARGIN });
   const bottomLimit = PAGE_HEIGHT - MARGIN;
-  const title = `Property Management — Eden Garden — ${form?.label || `Form ${report.formNumber}`} — ${report.reportDate}`;
+  const title = `Property Management — Eden Garden — ${form?.label || `Form ${report.formNumber}`} — Unit ${report.unitNo} — ${report.reportDate}`;
 
   doc.font("Helvetica-Bold").fontSize(12).fillColor("#111827").text(title, MARGIN, MARGIN - 10);
 

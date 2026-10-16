@@ -4,32 +4,40 @@ const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReport
 const { PM_EDEN_GARDEN_FORMS, getFormByNumber } = require("../constants/pmEdenGardenForms");
 const { buildPmEdenGardenReportPdf } = require("../utils/pmEdenGardenReportPdf");
 
+// "Unit No." (and any other text-type field) is excluded here — those are
+// captured on the public submission form, but on the Daily Report they're a
+// report-identifying field (see unitNo below), not a per-date checkpoint row.
 exports.meta = async (req, res) => {
   res.json({
     statusOptions: RESERVE_REGAL_CLUB_STATUS_OPTIONS,
     forms: PM_EDEN_GARDEN_FORMS.map((f) => ({
       formNumber: f.formNumber,
       label: f.label,
-      checkpoints: f.checkpoints.map((c) => ({ label: c.label, type: c.type || "photo" })),
+      checkpoints: f.checkpoints.filter((c) => c.type !== "text").map((c) => ({ label: c.label, type: c.type || "photo" })),
     })),
   });
 };
 
+// One report per (form, date, unit) — the same form/date can have many
+// reports, one per unit being photographed (Unit 18 and Unit 19 both get
+// their own report for the same date).
 exports.getByDate = async (req, res) => {
-  const { formNumber, date } = req.query;
-  if (!formNumber || !date) return res.status(400).json({ message: "formNumber and date are required" });
-  const report = await PmEdenGardenDailyReport.findOne({ formNumber: Number(formNumber), reportDate: date });
+  const { formNumber, date, unitNo } = req.query;
+  if (!formNumber || !date || !unitNo) return res.status(400).json({ message: "formNumber, date and unitNo are required" });
+  const report = await PmEdenGardenDailyReport.findOne({ formNumber: Number(formNumber), reportDate: date, unitNo });
   if (!report) return res.json(null);
   res.json(report);
 };
 
 exports.saveDraft = async (req, res) => {
-  const { formNumber, reportDate, entries, preparedBy } = req.body;
-  if (!formNumber || !reportDate) return res.status(400).json({ message: "formNumber and reportDate are required" });
+  const { formNumber, reportDate, unitNo, entries, preparedBy } = req.body;
+  if (!formNumber || !reportDate || !unitNo) {
+    return res.status(400).json({ message: "formNumber, reportDate and unitNo are required" });
+  }
 
   const report = await PmEdenGardenDailyReport.findOneAndUpdate(
-    { formNumber: Number(formNumber), reportDate, status: "draft" },
-    { formNumber: Number(formNumber), reportDate, entries, preparedBy },
+    { formNumber: Number(formNumber), reportDate, unitNo, status: "draft" },
+    { formNumber: Number(formNumber), reportDate, unitNo, entries, preparedBy },
     { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
   );
   res.json(report);
@@ -65,9 +73,10 @@ exports.getReport = async (req, res) => {
 };
 
 exports.listSubmitted = async (req, res) => {
-  const { formNumber, from, to } = req.query;
+  const { formNumber, from, to, unitNo } = req.query;
   const filter = { status: "submitted" };
   if (formNumber) filter.formNumber = Number(formNumber);
+  if (unitNo) filter.unitNo = unitNo;
   if (from || to) {
     filter.reportDate = {};
     if (from) filter.reportDate.$gte = from;
@@ -84,6 +93,7 @@ exports.listSubmitted = async (req, res) => {
       formNumber: r.formNumber,
       formLabel: getFormByNumber(r.formNumber)?.label || `Form ${r.formNumber}`,
       reportDate: r.reportDate,
+      unitNo: r.unitNo,
       preparedBy: r.preparedBy,
       counts,
       submittedAt: r.submittedAt,
@@ -111,7 +121,7 @@ exports.exportExcel = async (req, res) => {
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename=pm-eden-garden-${form?.label || report.formNumber}-${report.reportDate}.xlsx`
+    `attachment; filename=pm-eden-garden-${form?.label || report.formNumber}-unit-${report.unitNo}-${report.reportDate}.xlsx`
   );
   await workbook.xlsx.write(res);
   res.end();
@@ -125,7 +135,7 @@ exports.exportPdf = async (req, res) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename=pm-eden-garden-${form?.label || report.formNumber}-${report.reportDate}.pdf`
+    `attachment; filename=pm-eden-garden-${form?.label || report.formNumber}-unit-${report.unitNo}-${report.reportDate}.pdf`
   );
 
   const doc = buildPmEdenGardenReportPdf(report, form);

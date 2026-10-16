@@ -12,12 +12,15 @@ const PmEdenGardenEntrySchema = new mongoose.Schema(
 
 // Reuses the same status vocabulary as Reserve Club / Regal Garden Club /
 // One Business Center / Nature Park / (Housekeeping) Regal Garden — see
-// RESERVE_REGAL_CLUB_STATUS_OPTIONS. One report per (form, date) pair, same
-// reasoning as this module's forms each having their own distinct checklist.
+// RESERVE_REGAL_CLUB_STATUS_OPTIONS. One report per (form, date, unit) —
+// the same form/date can have many reports, one per unit being photographed
+// (e.g. Unit 18 and Unit 19 both get their own Oct 14 report), so "Unit No."
+// is a report-identifying field here rather than just another checkpoint.
 const PmEdenGardenDailyReportSchema = new mongoose.Schema(
   {
     formNumber: { type: Number, required: true },
     reportDate: { type: String, required: true },
+    unitNo: { type: String, required: true },
     entries: [PmEdenGardenEntrySchema],
     status: { type: String, enum: ["draft", "submitted"], default: "draft" },
     preparedBy: { type: String, default: "" },
@@ -26,6 +29,6 @@ const PmEdenGardenDailyReportSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-PmEdenGardenDailyReportSchema.index({ formNumber: 1, reportDate: 1 }, { unique: true });
+PmEdenGardenDailyReportSchema.index({ formNumber: 1, reportDate: 1, unitNo: 1 }, { unique: true });
 
 module.exports = mongoose.model("PmEdenGardenDailyReport", PmEdenGardenDailyReportSchema);
