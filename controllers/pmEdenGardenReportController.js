@@ -3,6 +3,8 @@ const PmEdenGardenDailyReport = require("../models/PmEdenGardenDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { PM_EDEN_GARDEN_FORMS, getFormByNumber } = require("../constants/pmEdenGardenForms");
 const { buildPmEdenGardenReportPdf } = require("../utils/pmEdenGardenReportPdf");
+const { computeChecklistKpi } = require("../utils/checklistKpi");
+const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
 // "Unit No." (and any other text-type field) is excluded here — those are
 // captured on the public submission form, but on the Daily Report they're a
@@ -139,6 +141,41 @@ exports.exportPdf = async (req, res) => {
   );
 
   const doc = buildPmEdenGardenReportPdf(report, form);
+  doc.pipe(res);
+  doc.end();
+};
+
+// Compliance KPI, grouped by checkpoint, over a date range (optionally
+// scoped to one form) — see utils/checklistKpi.js for what counts as "OK"
+// vs "Not OK".
+exports.kpi = async (req, res) => {
+  const { from, to, formNumber } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(PmEdenGardenDailyReport, {
+    from,
+    to,
+    extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
+    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    groupKey: (e) => e.checkpointLabel,
+    groupLabel: (e) => e.checkpointLabel,
+  });
+  res.json({ rows });
+};
+
+exports.kpiExportPdf = async (req, res) => {
+  const { from, to, formNumber } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeChecklistKpi(PmEdenGardenDailyReport, {
+    from,
+    to,
+    extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
+    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    groupKey: (e) => e.checkpointLabel,
+    groupLabel: (e) => e.checkpointLabel,
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=pm-eden-garden-kpi-${from}-to-${to}.pdf`);
+  const doc = buildChecklistKpiPdf("Property Management — Eden Garden — KPI", from, to, rows);
   doc.pipe(res);
   doc.end();
 };
