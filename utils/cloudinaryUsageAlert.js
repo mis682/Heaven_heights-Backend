@@ -1,4 +1,10 @@
-const { cloudinary, CLOUDINARY_ACCOUNTS, FALLBACK_THRESHOLD, recordHealthCheckFailure } = require("../middleware/upload");
+const {
+  cloudinary,
+  CLOUDINARY_ACCOUNTS,
+  FALLBACK_THRESHOLD,
+  recordHealthCheckFailure,
+  HEALTH_CHECK_TIMEOUT_MS,
+} = require("../middleware/upload");
 const CloudinaryAlertState = require("../models/CloudinaryAlertState");
 const { sendAlertEmail } = require("./mailer");
 
@@ -12,19 +18,29 @@ function toMB(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1);
 }
 
+// Timeout + one retry, same reasoning as upload.js's isAccountHealthy — a
+// disabled/over-limit account errors out fast, so the retry only costs time
+// on a genuine network blip, which is exactly the case worth ruling out
+// before advancing the failover chain past a tier that's actually fine.
 async function getUsage(account, state) {
-  try {
-    return await cloudinary.api.usage({
-      cloud_name: account.cloud_name,
-      api_key: account.api_key,
-      api_secret: account.api_secret,
-    });
-  } catch (err) {
-    const message = err?.message || String(err);
-    if (state) recordHealthCheckFailure(state, account.label, message);
-    else console.error(`[Cloudinary] "${account.label}" usage fetch failed: ${message}`);
-    return null; // transient Cloudinary API hiccup — try again next cycle
+  let lastError = null;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return await Promise.race([
+        cloudinary.api.usage({
+          cloud_name: account.cloud_name,
+          api_key: account.api_key,
+          api_secret: account.api_secret,
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("usage check timed out")), HEALTH_CHECK_TIMEOUT_MS)),
+      ]);
+    } catch (err) {
+      lastError = err?.message || String(err);
+    }
   }
+  if (state) recordHealthCheckFailure(state, account.label, lastError);
+  else console.error(`[Cloudinary] "${account.label}" usage fetch failed: ${lastError}`);
+  return null; // transient Cloudinary API hiccup — try again next cycle
 }
 
 async function checkCloudinaryUsageAndAlert() {

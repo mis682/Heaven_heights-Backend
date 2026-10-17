@@ -65,24 +65,37 @@ const FALLBACK_THRESHOLD = 90;
 // other (healthy) account's files of processing time too.
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
 
+// A genuinely disabled/over-limit account fails fast (Cloudinary returns an
+// error immediately), so a retry costs nothing there. A transient network
+// blip is what actually costs HEALTH_CHECK_TIMEOUT_MS to rule out — and one
+// has been confirmed in production taking down 4-5 tiers' checks within the
+// same few seconds, walking the chain straight past several genuinely
+// healthy accounts. One retry is enough to tell the two apart without
+// meaningfully slowing down the real-disabled-account case.
+const HEALTH_CHECK_MAX_ATTEMPTS = 2;
+
 // Returns `error` alongside `healthy` so callers can log *why* a tier was
 // skipped — a failed check (network blip, timeout, disabled cloud_name) is
 // treated as unhealthy the same as genuinely crossing FALLBACK_THRESHOLD,
 // but those are very different situations to diagnose after the fact.
 async function isAccountHealthy(account) {
-  try {
-    const usage = await Promise.race([
-      cloudinary.api.usage({
-        cloud_name: account.cloud_name,
-        api_key: account.api_key,
-        api_secret: account.api_secret,
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("health check timed out")), HEALTH_CHECK_TIMEOUT_MS)),
-    ]);
-    return { healthy: (usage.credits?.used_percent ?? 0) < FALLBACK_THRESHOLD, error: null };
-  } catch (err) {
-    return { healthy: false, error: err?.message || String(err) };
+  let lastError = null;
+  for (let attempt = 1; attempt <= HEALTH_CHECK_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const usage = await Promise.race([
+        cloudinary.api.usage({
+          cloud_name: account.cloud_name,
+          api_key: account.api_key,
+          api_secret: account.api_secret,
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("health check timed out")), HEALTH_CHECK_TIMEOUT_MS)),
+      ]);
+      return { healthy: (usage.credits?.used_percent ?? 0) < FALLBACK_THRESHOLD, error: null };
+    } catch (err) {
+      lastError = err?.message || String(err);
+    }
   }
+  return { healthy: false, error: lastError };
 }
 
 // Appends to CloudinaryAlertState's capped failure log and emits a console
@@ -289,4 +302,5 @@ module.exports = {
   FALLBACK_THRESHOLD,
   isAccountHealthy,
   recordHealthCheckFailure,
+  HEALTH_CHECK_TIMEOUT_MS,
 };
