@@ -148,6 +148,7 @@ router.get(
     const MaintenanceUniformSubmission = require("../models/MaintenanceUniformSubmission");
     const RegalGardenSubmission = require("../models/RegalGardenSubmission");
     const EdenGardenSubmission = require("../models/EdenGardenSubmission");
+    const NeoMeridianSubmission = require("../models/NeoMeridianSubmission");
     const PmRegalGardenSubmission = require("../models/PmRegalGardenSubmission");
     const PmEdenGardenSubmission = require("../models/PmEdenGardenSubmission");
     const PmGardenCitySubmission = require("../models/PmGardenCitySubmission");
@@ -174,6 +175,7 @@ router.get(
       maintenanceUniform,
       regalGarden,
       edenGarden,
+      neoMeridian,
       pmRegalGarden,
       pmEdenGarden,
       pmGardenCity,
@@ -199,6 +201,7 @@ router.get(
       countSingleField(MaintenanceUniformSubmission, "photoUrl"),
       countArrayField(RegalGardenSubmission),
       countArrayField(EdenGardenSubmission),
+      countArrayField(NeoMeridianSubmission),
       countArrayField(PmRegalGardenSubmission),
       countArrayField(PmEdenGardenSubmission),
       countArrayField(PmGardenCitySubmission),
@@ -226,6 +229,7 @@ router.get(
       maintenanceUniform,
       regalGarden,
       edenGarden,
+      neoMeridian,
       pmRegalGarden,
       pmEdenGarden,
       pmGardenCity,
@@ -281,6 +285,7 @@ router.get(
     const MaintenanceUniformSubmission = require("../models/MaintenanceUniformSubmission");
     const RegalGardenSubmission = require("../models/RegalGardenSubmission");
     const EdenGardenSubmission = require("../models/EdenGardenSubmission");
+    const NeoMeridianSubmission = require("../models/NeoMeridianSubmission");
     const PmRegalGardenSubmission = require("../models/PmRegalGardenSubmission");
     const PmEdenGardenSubmission = require("../models/PmEdenGardenSubmission");
     const PmGardenCitySubmission = require("../models/PmGardenCitySubmission");
@@ -314,6 +319,7 @@ router.get(
       maintenanceUniformDocs,
       regalGardenDocs,
       edenGardenDocs,
+      neoMeridianDocs,
       pmRegalGardenDocs,
       pmEdenGardenDocs,
       pmGardenCityDocs,
@@ -331,6 +337,7 @@ router.get(
       MaintenanceUniformSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photoUrl").lean(),
       RegalGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       EdenGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      NeoMeridianSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       PmRegalGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       PmEdenGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       PmGardenCitySubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
@@ -355,6 +362,7 @@ router.get(
     maintenanceUniformDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "maintenanceUniform", d.photoUrl ? 1 : 0));
     regalGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "regalGarden", (d.photos || []).length));
     edenGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "edenGarden", (d.photos || []).length));
+    neoMeridianDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "neoMeridian", (d.photos || []).length));
     pmRegalGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "pmRegalGarden", (d.photos || []).length));
     pmEdenGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "pmEdenGarden", (d.photos || []).length));
     pmGardenCityDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "pmGardenCity", (d.photos || []).length));
