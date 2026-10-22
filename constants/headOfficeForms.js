@@ -51,6 +51,18 @@ const HEAD_OFFICE_FORMS = [
       { label: "Handwash", type: "select", options: ["Yes", "No"] },
     ],
   },
+  {
+    formNumber: 4,
+    label: "Chairman Washroom Form",
+    checkpoints: [
+      photo("Urinal"),
+      photo("WC"),
+      photo("Mirror"),
+      photo("Dustbin"),
+      photo("Floor"),
+      { label: "Handwash", type: "select", options: ["Yes", "No"] },
+    ],
+  },
 ];
 
 function getFormByNumber(formNumber) {
