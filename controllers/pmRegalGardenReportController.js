@@ -4,6 +4,7 @@ const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReport
 const { PM_REGAL_GARDEN_FORMS, getFormByNumber } = require("../constants/pmRegalGardenForms");
 const { buildPmRegalGardenReportPdf } = require("../utils/pmRegalGardenReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
+const { escapeRegex } = require("../utils/escapeRegex");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
 // "Unit No." (and any other text-type field) is excluded here — those are
@@ -78,7 +79,7 @@ exports.listSubmitted = async (req, res) => {
   const { formNumber, from, to, unitNo } = req.query;
   const filter = { status: "submitted" };
   if (formNumber) filter.formNumber = Number(formNumber);
-  if (unitNo) filter.unitNo = unitNo;
+  if (unitNo) filter.unitNo = { $regex: escapeRegex(unitNo), $options: "i" };
   if (from || to) {
     filter.reportDate = {};
     if (from) filter.reportDate.$gte = from;
