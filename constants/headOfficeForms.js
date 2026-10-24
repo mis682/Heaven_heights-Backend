@@ -129,6 +129,19 @@ const HEAD_OFFICE_FORMS = [
       "Huddle Room-4 Mirror",
     ].map((label) => photo(label)),
   },
+  {
+    formNumber: 8,
+    label: "MCB Form",
+    checkpoints: [
+      "MCB Box-1 (Near MDO Cabin)",
+      "MCB Box-2 (Near MDO Cabin)",
+      "MCB Box-3 (Near MDO Cabin)",
+      "MCB Box-1 (Near Counter Reception)",
+      "MCB Box-2 (Near Counter Reception)",
+      "MCB Box-3 (Near Counter Reception)",
+      "Main MCB (Sales Area Side)",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
