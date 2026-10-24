@@ -53,7 +53,7 @@ const HEAD_OFFICE_FORMS = [
   },
   {
     formNumber: 4,
-    label: "Chairman Washroom Form",
+    label: "Chairman Washroom Form-1",
     checkpoints: [
       photo("Urinal"),
       photo("WC"),
@@ -223,6 +223,18 @@ const HEAD_OFFICE_FORMS = [
       "Negotiation room-1",
       "Negotiation room-2",
     ].map((label) => photo(label)),
+  },
+  {
+    formNumber: 13,
+    label: "Chairman Washroom Form-2",
+    checkpoints: [
+      photo("Urinal"),
+      photo("WC"),
+      photo("Mirror"),
+      photo("Dustbin"),
+      photo("Floor"),
+      { label: "Handwash", type: "select", options: ["Yes", "No"] },
+    ],
   },
 ];
 
