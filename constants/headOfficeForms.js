@@ -105,6 +105,30 @@ const HEAD_OFFICE_FORMS = [
       "Huddle Room-4 Desk",
     ].map((label) => photo(label)),
   },
+  {
+    formNumber: 7,
+    label: "Mirror Cleaning Form",
+    checkpoints: [
+      "MDO Workstation Mirror",
+      "Ananya Mam Cabin's Mirror",
+      "Rahul Sir's Cabin Mirror",
+      "Yogesh Sir's Cabin Mirror",
+      "Jalaj Sir's Cabin Mirror",
+      "Rakesh Sir's Cabin Mirror",
+      "AGM Cabin's Mirror",
+      "Workspace Mirror-1",
+      "Workspace Mirror-2",
+      "Conference Mirror",
+      "Lunch Room Mirror",
+      "Jinesh Sir Cabin's Mirror",
+      "Bade Sir Cabin's Mirror",
+      "Bade Sir Workstation's Mirror",
+      "Huddle Room-1 Mirror",
+      "Huddle Room-2 Mirror",
+      "Huddle Room-3 Mirror",
+      "Huddle Room-4 Mirror",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
