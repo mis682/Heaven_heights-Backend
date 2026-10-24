@@ -1,6 +1,6 @@
 const ExcelJS = require("exceljs");
 const PmEdenGardenDailyReport = require("../models/PmEdenGardenDailyReport");
-const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
+const { PM_STATUS_OPTIONS } = require("../constants/pmReportStatus");
 const { PM_EDEN_GARDEN_FORMS, getFormByNumber } = require("../constants/pmEdenGardenForms");
 const { buildPmEdenGardenReportPdf } = require("../utils/pmEdenGardenReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
@@ -12,7 +12,7 @@ const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 // report-identifying field (see unitNo below), not a per-date checkpoint row.
 exports.meta = async (req, res) => {
   res.json({
-    statusOptions: RESERVE_REGAL_CLUB_STATUS_OPTIONS,
+    statusOptions: PM_STATUS_OPTIONS,
     forms: PM_EDEN_GARDEN_FORMS.map((f) => ({
       formNumber: f.formNumber,
       label: f.label,
@@ -88,7 +88,7 @@ exports.listSubmitted = async (req, res) => {
   const reports = await PmEdenGardenDailyReport.find(filter).sort({ reportDate: -1 });
   const summarized = reports.map((r) => {
     const counts = {};
-    RESERVE_REGAL_CLUB_STATUS_OPTIONS.forEach((s) => {
+    PM_STATUS_OPTIONS.forEach((s) => {
       counts[s] = r.entries.filter((e) => e.status === s).length;
     });
     return {
@@ -156,7 +156,7 @@ exports.kpi = async (req, res) => {
     from,
     to,
     extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
-    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    goodStatus: PM_STATUS_OPTIONS[0],
     groupKey: (e) => e.checkpointLabel,
     groupLabel: (e) => e.checkpointLabel,
   });
@@ -170,7 +170,7 @@ exports.kpiExportPdf = async (req, res) => {
     from,
     to,
     extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
-    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    goodStatus: PM_STATUS_OPTIONS[0],
     groupKey: (e) => e.checkpointLabel,
     groupLabel: (e) => e.checkpointLabel,
   });
