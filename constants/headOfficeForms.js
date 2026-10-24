@@ -17,8 +17,6 @@ const HEAD_OFFICE_FORMS = [
     checkpoints: [
       photo("Urinal (1+2+3)"),
       photo("WC-1"),
-      photo("WC-2"),
-      photo("WC-3"),
       photo("Dustbin"),
       photo("Mirror"),
       photo("Floor"),
