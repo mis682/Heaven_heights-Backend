@@ -142,6 +142,27 @@ const HEAD_OFFICE_FORMS = [
       "Main MCB (Sales Area Side)",
     ].map((label) => photo(label)),
   },
+  {
+    formNumber: 9,
+    label: "Floor Form",
+    checkpoints: [
+      "Rahul Sir Cabin floor",
+      "Ananya Mam Cabin floor",
+      "MDO Workstation floor",
+      "Yogesh Sir Cabin floor",
+      "Jalaj Sir Cabin floor",
+      "Rakesh Sir Cabin floor",
+      "Jinesh Sir Cabin floor",
+      "AGM Cabin floor",
+      "Conference floor",
+      "Workstation floor-1",
+      "Workstation floor-2",
+      "Bade Sir Cabin floor",
+      "Rahul Sir (Director Area) Cabin floor",
+      "Monica Mam Cabin floor",
+      "Workstation area (Bade Sir) floor",
+    ].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
