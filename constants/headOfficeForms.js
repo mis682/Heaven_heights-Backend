@@ -231,6 +231,11 @@ const HEAD_OFFICE_FORMS = [
       { label: "Handwash", type: "select", options: ["Yes", "No"] },
     ],
   },
+  {
+    formNumber: 14,
+    label: "Banquet Hall Terrace Floor",
+    checkpoints: ["Banquet Hall-1", "Banquet Hall-2", "Banquet Hall-3", "Banquet Hall-4"].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
