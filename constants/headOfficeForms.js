@@ -42,8 +42,6 @@ const HEAD_OFFICE_FORMS = [
     checkpoints: [
       photo("Urinal"),
       photo("WC-1"),
-      photo("WC-2"),
-      photo("Dustbin"),
       photo("Mirror"),
       photo("Floor"),
       { label: "Handwash", type: "select", options: ["Yes", "No"] },
