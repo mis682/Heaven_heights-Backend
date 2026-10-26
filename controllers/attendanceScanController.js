@@ -235,9 +235,10 @@ exports.scan = async (req, res) => {
 };
 
 exports.records = async (req, res) => {
-  const { siteName, search, date } = req.query;
+  const { siteName, search, date, employeeId } = req.query;
   const filter = {};
   if (siteName) filter.siteName = siteName;
+  if (employeeId) filter.employeeId = employeeId;
   if (search) {
     const re = new RegExp(search, "i");
     filter.$or = [{ name: re }, { employeeId: re }, { siteName: re }];
