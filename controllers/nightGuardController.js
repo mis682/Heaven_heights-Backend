@@ -3,8 +3,7 @@ const NightGuardSubmission = require("../models/NightGuardSubmission");
 const NightGuardDailyReport = require("../models/NightGuardDailyReport");
 const { fileToUrl } = require("../middleware/upload");
 const { notifyWebhook } = require("../utils/webhook");
-const { buildNightGuardReportPdf } = require("../utils/nightGuardReportPdf");
-const { buildCardReportPdf } = require("../utils/cardReportPdf");
+const { buildNightGuardReportPdf, buildNightGuardReportPdfCard } = require("../utils/nightGuardReportPdf");
 const { buildIstDateRangeFilter } = require("../utils/istDateRange");
 const { computeNightGuardKpi } = require("../utils/nightGuardKpi");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
@@ -220,14 +219,7 @@ exports.exportPdf = async (req, res) => {
 
   const __t0 = process.hrtime.bigint(); // TEMP diagnostic
   const doc = req.query.layout === "card"
-    ? buildCardReportPdf({
-        title: `Night Guard — ${rangeLabel}`,
-        entries: report.entries.map((e) => ({
-          checkpointLabel: `${e.guardName} — ${e.site} — ${e.timeSlot}`,
-          status: e.status,
-        })),
-        goodStatus: NightGuardDailyReport.STATUS_OPTIONS[0],
-      })
+    ? buildNightGuardReportPdfCard(report, rangeLabel)
     : buildNightGuardReportPdf(report, rangeLabel);
   recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);

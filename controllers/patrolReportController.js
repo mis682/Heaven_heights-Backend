@@ -3,8 +3,7 @@ const PatrolDailyReport = require("../models/PatrolDailyReport");
 const PatrolSubmission = require("../models/PatrolSubmission");
 const Project = require("../models/Project");
 const Checkpoint = require("../models/Checkpoint");
-const { buildCheckpointReportPdf } = require("../utils/checkpointReportPdf");
-const { buildCardReportPdf } = require("../utils/cardReportPdf");
+const { buildCheckpointReportPdf, buildCheckpointReportPdfCard } = require("../utils/checkpointReportPdf");
 const { computeFixedHourGuardKpi } = require("../utils/patrolRoundSla");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
@@ -239,20 +238,7 @@ exports.exportReportPdf = async (req, res) => {
   res.setHeader("Content-Disposition", `attachment; filename=patrol-report-${report.projectName}-${filenameDate}.pdf`);
 
   const __t0 = process.hrtime.bigint(); // TEMP diagnostic
-  const doc = req.query.layout === "card"
-    ? buildCardReportPdf({
-        title: `${report.projectName} — ${rangeLabel}`,
-        entries: report.entries.flatMap((e) =>
-          e.checkpointStatuses
-            .map((status, idx) => ({
-              checkpointLabel: `${e.guardName} — ${e.date} ${e.timeSlot} — C${idx + 1}`,
-              status,
-            }))
-            .filter((entry) => entry.status)
-        ),
-        goodStatus: PatrolDailyReport.STATUS_OPTIONS[0],
-      })
-    : buildCheckpointReportPdf(report);
+  const doc = req.query.layout === "card" ? buildCheckpointReportPdfCard(report) : buildCheckpointReportPdf(report);
   recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);
   doc.end();
