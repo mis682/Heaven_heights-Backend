@@ -3,6 +3,7 @@ const PmEdenGardenDailyReport = require("../models/PmEdenGardenDailyReport");
 const { PM_STATUS_OPTIONS } = require("../constants/pmReportStatus");
 const { PM_EDEN_GARDEN_FORMS, getFormByNumber } = require("../constants/pmEdenGardenForms");
 const { buildPmEdenGardenReportPdf } = require("../utils/pmEdenGardenReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { escapeRegex } = require("../utils/escapeRegex");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
@@ -141,7 +142,13 @@ exports.exportPdf = async (req, res) => {
     `attachment; filename=pm-eden-garden-${form?.label || report.formNumber}-unit-${report.unitNo}-${report.reportDate}.pdf`
   );
 
-  const doc = buildPmEdenGardenReportPdf(report, form);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `Property Management — Eden Garden — ${form?.label || `Form ${report.formNumber}`} — Unit ${report.unitNo} — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: PM_STATUS_OPTIONS[0],
+      })
+    : buildPmEdenGardenReportPdf(report, form);
   doc.pipe(res);
   doc.end();
 };

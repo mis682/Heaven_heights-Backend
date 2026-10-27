@@ -3,6 +3,7 @@ const NeoMeridianDailyReport = require("../models/NeoMeridianDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { NEO_MERIDIAN_FORMS, getFormByNumber } = require("../constants/neoMeridianForms");
 const { buildNeoMeridianReportPdf } = require("../utils/neoMeridianReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
@@ -130,7 +131,13 @@ exports.exportPdf = async (req, res) => {
     `attachment; filename=neo-meridian-${form?.label || report.formNumber}-${report.reportDate}.pdf`
   );
 
-  const doc = buildNeoMeridianReportPdf(report, form);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `Neo Meridian — ${form?.label || `Form ${report.formNumber}`} — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+      })
+    : buildNeoMeridianReportPdf(report, form);
   doc.pipe(res);
   doc.end();
 };

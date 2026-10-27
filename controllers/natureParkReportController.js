@@ -3,6 +3,7 @@ const NatureParkDailyReport = require("../models/NatureParkDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { NATURE_PARK_FORMS, getFormByNumber } = require("../constants/natureParkForms");
 const { buildNatureParkReportPdf } = require("../utils/natureParkReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
@@ -130,7 +131,13 @@ exports.exportPdf = async (req, res) => {
     `attachment; filename=nature-park-${form?.label || report.formNumber}-${report.reportDate}.pdf`
   );
 
-  const doc = buildNatureParkReportPdf(report, form);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `Nature Park — ${form?.label || `Form ${report.formNumber}`} — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+      })
+    : buildNatureParkReportPdf(report, form);
   doc.pipe(res);
   doc.end();
 };

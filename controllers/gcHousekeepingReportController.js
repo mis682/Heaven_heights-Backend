@@ -2,6 +2,7 @@ const ExcelJS = require("exceljs");
 const GCHousekeepingDailyReport = require("../models/GCHousekeepingDailyReport");
 const { GC_HOUSEKEEPING_STATUS_OPTIONS } = require("../constants/gcHousekeepingReportStatus");
 const { buildGCHousekeepingReportPdf } = require("../utils/gcHousekeepingReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
@@ -120,7 +121,13 @@ exports.exportPdf = async (req, res) => {
   res.setHeader("Content-Disposition", `attachment; filename=gc-housekeeping-report-${report.reportDate}.pdf`);
 
   const __t0 = process.hrtime.bigint(); // TEMP diagnostic
-  const doc = buildGCHousekeepingReportPdf(report);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `GC Housekeeping — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: GC_HOUSEKEEPING_STATUS_OPTIONS[0],
+      })
+    : buildGCHousekeepingReportPdf(report);
   recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);
   doc.end();

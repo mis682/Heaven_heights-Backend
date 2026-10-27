@@ -3,6 +3,7 @@ const PmRegalGardenDailyReport = require("../models/PmRegalGardenDailyReport");
 const { PM_STATUS_OPTIONS } = require("../constants/pmReportStatus");
 const { PM_REGAL_GARDEN_FORMS, getFormByNumber } = require("../constants/pmRegalGardenForms");
 const { buildPmRegalGardenReportPdf } = require("../utils/pmRegalGardenReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { escapeRegex } = require("../utils/escapeRegex");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
@@ -141,7 +142,13 @@ exports.exportPdf = async (req, res) => {
     `attachment; filename=pm-regal-garden-${form?.label || report.formNumber}-unit-${report.unitNo}-${report.reportDate}.pdf`
   );
 
-  const doc = buildPmRegalGardenReportPdf(report, form);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `Property Management — Regal Garden — ${form?.label || `Form ${report.formNumber}`} — Unit ${report.unitNo} — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: PM_STATUS_OPTIONS[0],
+      })
+    : buildPmRegalGardenReportPdf(report, form);
   doc.pipe(res);
   doc.end();
 };

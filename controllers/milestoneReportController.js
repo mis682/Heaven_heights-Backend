@@ -3,6 +3,7 @@ const MilestoneDailyReport = require("../models/MilestoneDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { MILESTONE_FORMS, getFormByNumber } = require("../constants/milestoneForms");
 const { buildMilestoneReportPdf } = require("../utils/milestoneReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
@@ -130,7 +131,13 @@ exports.exportPdf = async (req, res) => {
     `attachment; filename=milestone-${form?.label || report.formNumber}-${report.reportDate}.pdf`
   );
 
-  const doc = buildMilestoneReportPdf(report, form);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `Milestone — ${form?.label || `Form ${report.formNumber}`} — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+      })
+    : buildMilestoneReportPdf(report, form);
   doc.pipe(res);
   doc.end();
 };

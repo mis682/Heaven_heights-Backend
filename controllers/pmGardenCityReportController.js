@@ -3,6 +3,7 @@ const PmGardenCityDailyReport = require("../models/PmGardenCityDailyReport");
 const { PM_STATUS_OPTIONS } = require("../constants/pmReportStatus");
 const { PM_GARDEN_CITY_FORMS, getFormByNumber } = require("../constants/pmGardenCityForms");
 const { buildPmGardenCityReportPdf } = require("../utils/pmGardenCityReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { escapeRegex } = require("../utils/escapeRegex");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
@@ -141,7 +142,13 @@ exports.exportPdf = async (req, res) => {
     `attachment; filename=pm-garden-city-${form?.label || report.formNumber}-unit-${report.unitNo}-${report.reportDate}.pdf`
   );
 
-  const doc = buildPmGardenCityReportPdf(report, form);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `Property Management — Garden City — ${form?.label || `Form ${report.formNumber}`} — Unit ${report.unitNo} — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: PM_STATUS_OPTIONS[0],
+      })
+    : buildPmGardenCityReportPdf(report, form);
   doc.pipe(res);
   doc.end();
 };

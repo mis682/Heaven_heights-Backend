@@ -3,6 +3,7 @@ const ReserveClubDailyReport = require("../models/ReserveClubDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { RESERVE_CLUB_FORMS, getFormByNumber } = require("../constants/reserveClubForms");
 const { buildReserveClubReportPdf } = require("../utils/reserveClubReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
@@ -126,7 +127,13 @@ exports.exportPdf = async (req, res) => {
   res.setHeader("Content-Disposition", `attachment; filename=reserve-club-${form?.label || report.formNumber}-${report.reportDate}.pdf`);
 
   const __t0 = process.hrtime.bigint(); // TEMP diagnostic
-  const doc = buildReserveClubReportPdf(report, form);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `Reserve Club — ${form?.label || `Form ${report.formNumber}`} — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+      })
+    : buildReserveClubReportPdf(report, form);
   recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);
   doc.end();

@@ -3,6 +3,7 @@ const HeadOfficeDailyReport = require("../models/HeadOfficeDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { HEAD_OFFICE_FORMS, getFormByNumber } = require("../constants/headOfficeForms");
 const { buildHeadOfficeReportPdf } = require("../utils/headOfficeReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
@@ -136,7 +137,13 @@ exports.exportPdf = async (req, res) => {
     `attachment; filename=head-office-${form?.label || report.formNumber}-${report.reportDate}.pdf`
   );
 
-  const doc = buildHeadOfficeReportPdf(report, form);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `Head Office — ${form?.label || `Form ${report.formNumber}`} — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+      })
+    : buildHeadOfficeReportPdf(report, form);
   doc.pipe(res);
   doc.end();
 };

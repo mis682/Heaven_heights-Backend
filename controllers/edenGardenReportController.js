@@ -3,6 +3,7 @@ const EdenGardenDailyReport = require("../models/EdenGardenDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
 const { EDEN_GARDEN_FORMS, getFormByNumber } = require("../constants/edenGardenForms");
 const { buildEdenGardenReportPdf } = require("../utils/edenGardenReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
@@ -130,7 +131,13 @@ exports.exportPdf = async (req, res) => {
     `attachment; filename=eden-garden-${form?.label || report.formNumber}-${report.reportDate}.pdf`
   );
 
-  const doc = buildEdenGardenReportPdf(report, form);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `Eden Garden — ${form?.label || `Form ${report.formNumber}`} — ${report.reportDate}`,
+        entries: report.entries,
+        goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+      })
+    : buildEdenGardenReportPdf(report, form);
   doc.pipe(res);
   doc.end();
 };
