@@ -6,8 +6,7 @@ const {
   MAINTENANCE_UNIFORM_DESIGNATIONS,
   MAINTENANCE_UNIFORM_REPORT_FORMATS,
 } = require("../constants/maintenanceUniformStatus");
-const { buildMaintenanceUniformReportPdf } = require("../utils/maintenanceUniformReportPdf");
-const { buildCardReportPdf } = require("../utils/cardReportPdf");
+const { buildMaintenanceUniformReportPdf, buildMaintenanceUniformReportPdfCard } = require("../utils/maintenanceUniformReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
 const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 
@@ -153,13 +152,7 @@ exports.exportPdf = async (req, res) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename=maintenance-uniform-${namePart}${report.reportDate}.pdf`);
 
-  const doc = req.query.layout === "card"
-    ? buildCardReportPdf({
-        title: `Maintenance Uniform${report.reportName ? ` — ${report.reportName}` : ""} — ${report.reportDate}`,
-        entries: report.entries.map((e) => ({ checkpointLabel: `${e.staffName} — ${e.siteName}`, status: e.status })),
-        goodStatus: MAINTENANCE_UNIFORM_STATUS_OPTIONS[0],
-      })
-    : buildMaintenanceUniformReportPdf(report);
+  const doc = req.query.layout === "card" ? buildMaintenanceUniformReportPdfCard(report) : buildMaintenanceUniformReportPdf(report);
   doc.pipe(res);
   doc.end();
 };

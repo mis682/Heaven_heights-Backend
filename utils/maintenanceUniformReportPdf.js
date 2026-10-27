@@ -65,4 +65,90 @@ function buildMaintenanceUniformReportPdf(report) {
   return doc;
 }
 
-module.exports = { buildMaintenanceUniformReportPdf };
+const CARD_NAVY = "#1e3550";
+const CARD_INK = "#24292b";
+const CARD_INK_SOFT = "#5b6265";
+const CARD_BAD = "#a83a2a";
+const CARD_BAD_BG = "#fbe7e4";
+const CARD_NEUTRAL_BG = "#e8e8e3";
+
+// Mirrors the on-screen Card view (MaintenanceUniformAdminReportPage.jsx's
+// groupedEntries): one block per designation with a header bar, then each
+// staff member on its own line — same grouping as the screen and as
+// Classic, just staff-per-line instead of a staff-card grid (more reliable
+// to lay out in pdfkit than a true grid).
+function groupedEntries(entries) {
+  const groups = [];
+  for (const e of entries) {
+    const last = groups[groups.length - 1];
+    if (last && last.designation === e.designation) last.rows.push(e);
+    else groups.push({ designation: e.designation, rows: [e] });
+  }
+  return groups;
+}
+
+function buildMaintenanceUniformReportPdfCard(report) {
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const bottomLimit = doc.page.height - doc.page.margins.bottom;
+  const left = doc.page.margins.left;
+
+  const groups = groupedEntries(report.entries);
+  const overallTotal = report.entries.length;
+  const overallOk = report.entries.filter((e) => e.status === "OK").length;
+  const overallFlagged = overallTotal - overallOk;
+
+  const title = `Maintenance Uniform${report.reportName ? ` — ${report.reportName}` : ""} — ${report.reportDate}`;
+  doc.font("Helvetica-Bold").fontSize(16).fillColor(CARD_NAVY).text(title);
+  doc.moveDown(0.2);
+  doc.font("Helvetica").fontSize(9).fillColor(CARD_INK_SOFT).text("Maintenance Uniform Report — read-only admin view");
+  doc.moveDown(0.8);
+
+  doc.font("Helvetica-Bold").fontSize(10.5).fillColor(overallFlagged > 0 ? CARD_BAD : CARD_INK);
+  doc.text(`${overallOk}/${overallTotal} OK   ·   ${overallFlagged} flagged   ·   ${groups.length} designations`);
+  doc.moveDown(1);
+
+  groups.forEach((group) => {
+    const headerHeight = 22;
+    const estimatedHeight = headerHeight + group.rows.length * 13 + 12;
+    if (doc.y + estimatedHeight > bottomLimit) doc.addPage();
+
+    const okCount = group.rows.filter((r) => r.status === "OK").length;
+    const groupFlagged = group.rows.length - okCount;
+    const barY = doc.y;
+    doc.rect(left, barY, contentWidth, headerHeight).fill(groupFlagged > 0 ? CARD_BAD_BG : CARD_NEUTRAL_BG);
+    doc
+      .fillColor(groupFlagged > 0 ? CARD_BAD : CARD_INK)
+      .font("Helvetica-Bold")
+      .fontSize(10.5)
+      .text(group.designation, left + 8, barY + 6, { lineBreak: false });
+    doc
+      .fillColor(CARD_INK_SOFT)
+      .font("Helvetica")
+      .fontSize(8.5)
+      .text(`${okCount} / ${group.rows.length} OK`, left, barY + 7, { width: contentWidth - 10, align: "right", lineBreak: false });
+    doc.x = left;
+    doc.y = barY + headerHeight + 6;
+
+    doc.font("Helvetica").fontSize(8.5);
+    group.rows.forEach((e) => {
+      const lineHeight = 13;
+      if (doc.y + lineHeight > bottomLimit) {
+        doc.addPage();
+        doc.x = left;
+        doc.y = doc.page.margins.top;
+      }
+      const flagged = e.status && e.status !== "OK";
+      const label = `${e.staffName} — ${e.siteName} — ${e.status || "—"}`;
+      doc.fillColor(flagged ? CARD_BAD : CARD_INK_SOFT);
+      doc.text(label, left + 12, doc.y, { width: contentWidth - 24 });
+      doc.moveDown(0.15);
+    });
+
+    doc.moveDown(0.6);
+  });
+
+  return doc;
+}
+
+module.exports = { buildMaintenanceUniformReportPdf, buildMaintenanceUniformReportPdfCard };
