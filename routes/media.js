@@ -149,6 +149,7 @@ router.get(
     const RegalGardenSubmission = require("../models/RegalGardenSubmission");
     const EdenGardenSubmission = require("../models/EdenGardenSubmission");
     const NeoMeridianSubmission = require("../models/NeoMeridianSubmission");
+    const MilestoneSubmission = require("../models/MilestoneSubmission");
     const HeadOfficeSubmission = require("../models/HeadOfficeSubmission");
     const PmRegalGardenSubmission = require("../models/PmRegalGardenSubmission");
     const PmEdenGardenSubmission = require("../models/PmEdenGardenSubmission");
@@ -177,6 +178,7 @@ router.get(
       regalGarden,
       edenGarden,
       neoMeridian,
+      milestone,
       headOffice,
       pmRegalGarden,
       pmEdenGarden,
@@ -204,6 +206,7 @@ router.get(
       countArrayField(RegalGardenSubmission),
       countArrayField(EdenGardenSubmission),
       countArrayField(NeoMeridianSubmission),
+      countArrayField(MilestoneSubmission),
       countArrayField(HeadOfficeSubmission),
       countArrayField(PmRegalGardenSubmission),
       countArrayField(PmEdenGardenSubmission),
@@ -233,6 +236,7 @@ router.get(
       regalGarden,
       edenGarden,
       neoMeridian,
+      milestone,
       headOffice,
       pmRegalGarden,
       pmEdenGarden,
@@ -290,6 +294,7 @@ router.get(
     const RegalGardenSubmission = require("../models/RegalGardenSubmission");
     const EdenGardenSubmission = require("../models/EdenGardenSubmission");
     const NeoMeridianSubmission = require("../models/NeoMeridianSubmission");
+    const MilestoneSubmission = require("../models/MilestoneSubmission");
     const HeadOfficeSubmission = require("../models/HeadOfficeSubmission");
     const PmRegalGardenSubmission = require("../models/PmRegalGardenSubmission");
     const PmEdenGardenSubmission = require("../models/PmEdenGardenSubmission");
@@ -325,6 +330,7 @@ router.get(
       regalGardenDocs,
       edenGardenDocs,
       neoMeridianDocs,
+      milestoneDocs,
       headOfficeDocs,
       pmRegalGardenDocs,
       pmEdenGardenDocs,
@@ -344,6 +350,7 @@ router.get(
       RegalGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       EdenGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       NeoMeridianSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      MilestoneSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       HeadOfficeSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       PmRegalGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       PmEdenGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
@@ -370,6 +377,7 @@ router.get(
     regalGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "regalGarden", (d.photos || []).length));
     edenGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "edenGarden", (d.photos || []).length));
     neoMeridianDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "neoMeridian", (d.photos || []).length));
+    milestoneDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "milestone", (d.photos || []).length));
     headOfficeDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "headOffice", (d.photos || []).length));
     pmRegalGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "pmRegalGarden", (d.photos || []).length));
     pmEdenGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "pmEdenGarden", (d.photos || []).length));

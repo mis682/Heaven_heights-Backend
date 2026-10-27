@@ -13,6 +13,7 @@ const NatureParkSubmission = require("../models/NatureParkSubmission");
 const RegalGardenSubmission = require("../models/RegalGardenSubmission");
 const EdenGardenSubmission = require("../models/EdenGardenSubmission");
 const NeoMeridianSubmission = require("../models/NeoMeridianSubmission");
+const MilestoneSubmission = require("../models/MilestoneSubmission");
 const HeadOfficeSubmission = require("../models/HeadOfficeSubmission");
 const PmRegalGardenSubmission = require("../models/PmRegalGardenSubmission");
 const PmEdenGardenSubmission = require("../models/PmEdenGardenSubmission");
@@ -313,6 +314,7 @@ async function archiveOldMedia() {
     regalGardenDocs,
     edenGardenDocs,
     neoMeridianDocs,
+    milestoneDocs,
     headOfficeDocs,
     pmRegalGardenDocs,
     pmEdenGardenDocs,
@@ -362,6 +364,10 @@ async function archiveOldMedia() {
         submittedAt: { $lt: cutoff },
         "photos.photoUrl": { $regex: cloudinaryPattern },
       }).limit(BATCH_LIMIT),
+      MilestoneSubmission.find({
+        submittedAt: { $lt: cutoff },
+        "photos.photoUrl": { $regex: cloudinaryPattern },
+      }).limit(BATCH_LIMIT),
       HeadOfficeSubmission.find({
         submittedAt: { $lt: cutoff },
         "photos.photoUrl": { $regex: cloudinaryPattern },
@@ -398,6 +404,7 @@ async function archiveOldMedia() {
     photosArrayTasks(regalGardenDocs, "regalGarden", touchedDocs),
     photosArrayTasks(edenGardenDocs, "edenGarden", touchedDocs),
     photosArrayTasks(neoMeridianDocs, "neoMeridian", touchedDocs),
+    photosArrayTasks(milestoneDocs, "milestone", touchedDocs),
     photosArrayTasks(headOfficeDocs, "headOffice", touchedDocs),
     photosArrayTasks(pmRegalGardenDocs, "pmRegalGarden", touchedDocs),
     photosArrayTasks(pmEdenGardenDocs, "pmEdenGarden", touchedDocs),
