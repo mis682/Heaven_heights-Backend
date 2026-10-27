@@ -4,6 +4,7 @@ const PatrolSubmission = require("../models/PatrolSubmission");
 const Project = require("../models/Project");
 const Checkpoint = require("../models/Checkpoint");
 const { buildCheckpointReportPdf } = require("../utils/checkpointReportPdf");
+const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeFixedHourGuardKpi } = require("../utils/patrolRoundSla");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
@@ -232,12 +233,26 @@ exports.exportReportPdf = async (req, res) => {
   const report = await PatrolDailyReport.findById(req.params.id);
   if (!report) return res.status(404).json({ message: "Report not found" });
 
-  const filenameDate = dateRangeLabel(report).replace(/\s+/g, "");
+  const rangeLabel = dateRangeLabel(report);
+  const filenameDate = rangeLabel.replace(/\s+/g, "");
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename=patrol-report-${report.projectName}-${filenameDate}.pdf`);
 
   const __t0 = process.hrtime.bigint(); // TEMP diagnostic
-  const doc = buildCheckpointReportPdf(report);
+  const doc = req.query.layout === "card"
+    ? buildCardReportPdf({
+        title: `${report.projectName} — ${rangeLabel}`,
+        entries: report.entries.flatMap((e) =>
+          e.checkpointStatuses
+            .map((status, idx) => ({
+              checkpointLabel: `${e.guardName} — ${e.date} ${e.timeSlot} — C${idx + 1}`,
+              status,
+            }))
+            .filter((entry) => entry.status)
+        ),
+        goodStatus: PatrolDailyReport.STATUS_OPTIONS[0],
+      })
+    : buildCheckpointReportPdf(report);
   recordMetric("pdf", Number(process.hrtime.bigint() - __t0) / 1e6); // TEMP diagnostic
   doc.pipe(res);
   doc.end();
