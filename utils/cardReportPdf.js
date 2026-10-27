@@ -10,13 +10,13 @@ const BORDER_COLOR = "#999999";
 const FLAGGED_BORDER = "#FECACA";
 const FLAGGED_FILL = "#FEF2F2";
 const MARGIN = 24;
-const PAGE_WIDTH = 24 + 190 * 3 + 24; // margin + 3 cards + margin
 const PAGE_HEIGHT = 780;
 
 const CARD_WIDTH = 190;
 const CARD_HEIGHT = 70;
 const CARD_GAP = 10;
 const CARDS_PER_ROW = 3;
+const PAGE_WIDTH = MARGIN * 2 + CARDS_PER_ROW * CARD_WIDTH + (CARDS_PER_ROW - 1) * CARD_GAP;
 
 function drawTitle(doc, title) {
   doc.font("Helvetica-Bold").fontSize(12).fillColor("#111827").text(title, MARGIN, MARGIN - 10, {
