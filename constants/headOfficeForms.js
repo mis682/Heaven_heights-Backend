@@ -234,6 +234,11 @@ const HEAD_OFFICE_FORMS = [
     label: "Banquet Hall Terrace Floor",
     checkpoints: ["Banquet Hall-1", "Banquet Hall-2", "Banquet Hall-3", "Banquet Hall-4"].map((label) => photo(label)),
   },
+  {
+    formNumber: 15,
+    label: "Sales MCB Form",
+    checkpoints: ["MCB-1", "MCB-2", "MCB-3"].map((label) => photo(label)),
+  },
 ];
 
 function getFormByNumber(formNumber) {
