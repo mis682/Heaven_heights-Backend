@@ -150,6 +150,7 @@ router.get(
     const EdenGardenSubmission = require("../models/EdenGardenSubmission");
     const NeoMeridianSubmission = require("../models/NeoMeridianSubmission");
     const MilestoneSubmission = require("../models/MilestoneSubmission");
+    const WeeklyUpdateSubmission = require("../models/WeeklyUpdateSubmission");
     const HydeParkSubmission = require("../models/HydeParkSubmission");
     const HeadOfficeSubmission = require("../models/HeadOfficeSubmission");
     const PmRegalGardenSubmission = require("../models/PmRegalGardenSubmission");
@@ -180,6 +181,7 @@ router.get(
       edenGarden,
       neoMeridian,
       milestone,
+      weeklyUpdate,
       hydePark,
       headOffice,
       pmRegalGarden,
@@ -209,6 +211,7 @@ router.get(
       countArrayField(EdenGardenSubmission),
       countArrayField(NeoMeridianSubmission),
       countArrayField(MilestoneSubmission),
+      countArrayField(WeeklyUpdateSubmission),
       countArrayField(HydeParkSubmission),
       countArrayField(HeadOfficeSubmission),
       countArrayField(PmRegalGardenSubmission),
@@ -240,6 +243,7 @@ router.get(
       edenGarden,
       neoMeridian,
       milestone,
+      weeklyUpdate,
       hydePark,
       headOffice,
       pmRegalGarden,
@@ -299,6 +303,7 @@ router.get(
     const EdenGardenSubmission = require("../models/EdenGardenSubmission");
     const NeoMeridianSubmission = require("../models/NeoMeridianSubmission");
     const MilestoneSubmission = require("../models/MilestoneSubmission");
+    const WeeklyUpdateSubmission = require("../models/WeeklyUpdateSubmission");
     const HydeParkSubmission = require("../models/HydeParkSubmission");
     const HeadOfficeSubmission = require("../models/HeadOfficeSubmission");
     const PmRegalGardenSubmission = require("../models/PmRegalGardenSubmission");
@@ -336,6 +341,7 @@ router.get(
       edenGardenDocs,
       neoMeridianDocs,
       milestoneDocs,
+      weeklyUpdateDocs,
       hydeParkDocs,
       headOfficeDocs,
       pmRegalGardenDocs,
@@ -357,6 +363,7 @@ router.get(
       EdenGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       NeoMeridianSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       MilestoneSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
+      WeeklyUpdateSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       HydeParkSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       HeadOfficeSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
       PmRegalGardenSubmission.find({ submittedAt: { $gte: cutoff } }).select("submittedAt photos").lean(),
@@ -385,6 +392,7 @@ router.get(
     edenGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "edenGarden", (d.photos || []).length));
     neoMeridianDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "neoMeridian", (d.photos || []).length));
     milestoneDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "milestone", (d.photos || []).length));
+    weeklyUpdateDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "weeklyUpdate", (d.photos || []).length));
     hydeParkDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "hydePark", (d.photos || []).length));
     headOfficeDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "headOffice", (d.photos || []).length));
     pmRegalGardenDocs.forEach((d) => addCount(istDateStr(d.submittedAt), "pmRegalGarden", (d.photos || []).length));

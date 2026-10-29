@@ -13,6 +13,7 @@ const PERMISSION_MODULES = [
   { key: "edenGarden", label: "Eden Garden" },
   { key: "neoMeridian", label: "Neo Meridian" },
   { key: "milestone", label: "Milestone" },
+  { key: "weeklyUpdate", label: "Weekly Update Other Projects" },
   { key: "hydePark", label: "Hyde Park" },
   { key: "headOffice", label: "Head Office" },
   { key: "pmRegalGarden", label: "Regal Garden" },
