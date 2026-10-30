@@ -1,14 +1,19 @@
 const mongoose = require("mongoose");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
+const { MCB_STATUS_OPTIONS } = require("../constants/mcbReportStatus");
 
-// "Yes"/"No" are only ever set for a "select"-type checkpoint (e.g.
-// Handwash) — appended here rather than filtered per-checkpoint, since this
-// is just a storage-level allow-list, not what's actually offered in the UI
-// for any given row.
+// "Yes"/"No" (a "select"-type checkpoint, e.g. Handwash) and the MCB forms'
+// ON/OFF vocabulary are appended here rather than filtered per-form/
+// checkpoint, since this is just a storage-level allow-list, not what's
+// actually offered in the UI for any given row/form.
 const HeadOfficeEntrySchema = new mongoose.Schema(
   {
     checkpointLabel: { type: String, required: true },
-    status: { type: String, enum: [...RESERVE_REGAL_CLUB_STATUS_OPTIONS, "Yes", "No", ""], default: "" },
+    status: {
+      type: String,
+      enum: [...new Set([...RESERVE_REGAL_CLUB_STATUS_OPTIONS, "Yes", "No", ...MCB_STATUS_OPTIONS, ""])],
+      default: "",
+    },
   },
   { _id: false }
 );

@@ -10,6 +10,8 @@ function photo(label, opts = {}) {
   return { label, type: "photo", ...opts };
 }
 
+const { MCB_STATUS_OPTIONS } = require("./mcbReportStatus");
+
 const HEAD_OFFICE_FORMS = [
   {
     formNumber: 1,
@@ -126,6 +128,7 @@ const HEAD_OFFICE_FORMS = [
   {
     formNumber: 8,
     label: "MCB Form",
+    statusOptions: MCB_STATUS_OPTIONS,
     checkpoints: [
       "MCB Box-1 (Near MDO Cabin)",
       "MCB Box-2 (Near MDO Cabin)",
@@ -236,6 +239,7 @@ const HEAD_OFFICE_FORMS = [
   {
     formNumber: 15,
     label: "Sales MCB Form",
+    statusOptions: MCB_STATUS_OPTIONS,
     checkpoints: ["MCB-1", "MCB-2", "MCB-3"].map((label) => photo(label)),
   },
 ];

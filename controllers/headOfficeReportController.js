@@ -10,12 +10,15 @@ const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 // Most checkpoints use the shared status vocabulary, but a "select" one
 // (e.g. Handwash: Yes/No) needs its own options on the Daily Report too —
 // so each checkpoint carries its own options here instead of just a label.
+// A form can also override the vocabulary for ALL its checkpoints (e.g. the
+// MCB forms track ON/OFF, not Clean/Not Clean) via its own `statusOptions`.
 exports.meta = async (req, res) => {
   res.json({
     statusOptions: RESERVE_REGAL_CLUB_STATUS_OPTIONS,
     forms: HEAD_OFFICE_FORMS.map((f) => ({
       formNumber: f.formNumber,
       label: f.label,
+      statusOptions: f.statusOptions || null,
       checkpoints: f.checkpoints.map((c) => ({
         label: c.label,
         options: c.type === "select" ? c.options : null,
