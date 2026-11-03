@@ -85,7 +85,10 @@ async function uploadToDrive({ buffer, filename, mimeType, folderId }) {
   const data = await res.json();
   if (!data.id) throw new Error(`Drive upload failed: ${JSON.stringify(data)}`);
 
-  const base = process.env.SERVER_BASE_URL || "";
+  // .trim() guards against a trailing newline/space in the env var value —
+  // invisible in Render's dashboard text field, but breaks the URL by
+  // inserting a line break right after the origin.
+  const base = (process.env.SERVER_BASE_URL || "").trim();
   const url = `${base}/api/media/drive/${data.id}`;
   return { fileId: data.id, url };
 }
