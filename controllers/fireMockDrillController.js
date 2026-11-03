@@ -1,30 +1,45 @@
-const { v2: cloudinary } = require("cloudinary");
 const FireMockDrill = require("../models/FireMockDrill");
 const { notifyWebhook } = require("../utils/webhook");
 const { sendAlertEmail } = require("../utils/mailer");
 const { sendTelegramMessage } = require("../utils/telegram");
+const { uploadToDrive } = require("../utils/googleDrive");
+const { compressVideo } = require("../utils/videoCompress");
 
 const PROJECTS = ["Regal Garden", "Neo Meridian", "Milestone", "OBC", "Eden Garden"];
-const VIDEO_FOLDER = "heaven-heights/fire-mock-drill-videos";
 
 exports.meta = async (req, res) => {
   res.json({ projects: PROJECTS });
 };
 
-// Videos upload straight from the browser to Cloudinary (bypassing our
-// server) since they can be large — this endpoint just hands out a short-lived
-// signed upload authorization instead of relaying the file itself.
-exports.getUploadSignature = async (req, res) => {
-  const timestamp = Math.round(Date.now() / 1000);
-  const paramsToSign = { timestamp, folder: VIDEO_FOLDER };
-  const signature = cloudinary.utils.api_sign_request(paramsToSign, process.env.CLOUDINARY_API_SECRET);
-  res.json({
-    signature,
-    timestamp,
-    apiKey: process.env.CLOUDINARY_API_KEY,
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-    folder: VIDEO_FOLDER,
-  });
+// All Fire Mock Drill files (panel photo, videos, report, checklist pages)
+// go to this app's own Google Drive folder instead of Cloudinary — unlike
+// every other module's photos, which upload straight from the browser to
+// Cloudinary (see api/media/upload-signature), these relay through this
+// server because a video needs compressing before it's stored. A dedicated
+// GOOGLE_DRIVE_FIRE_MOCK_DRILL_FOLDER_ID keeps these separate from the
+// shared archive folder (falls back to the default archive folder if unset).
+exports.uploadFile = async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+  const folderId = process.env.GOOGLE_DRIVE_FIRE_MOCK_DRILL_FOLDER_ID || undefined;
+  const isVideo = req.file.mimetype.startsWith("video/");
+
+  let buffer = req.file.buffer;
+  let mimeType = req.file.mimetype;
+  let filename = req.file.originalname;
+
+  if (isVideo) {
+    try {
+      buffer = await compressVideo(req.file.buffer);
+      mimeType = "video/mp4";
+      filename = filename.replace(/\.[^.]+$/, "") + ".mp4";
+    } catch (err) {
+      return res.status(500).json({ message: "Video compression failed — please try a different video" });
+    }
+  }
+
+  const { url } = await uploadToDrive({ buffer, filename, mimeType, folderId });
+  res.json({ url });
 };
 
 function parseVideoUrls(raw) {
