@@ -52,27 +52,51 @@ function parseVideoUrls(raw) {
   }
 }
 
-// Panel photo, report and checklist attachments upload straight from the
-// browser to Cloudinary (see api/media/upload-signature), same as videos
-// already did — this just receives the resulting URLs as JSON.
+// Panel photo and checklist attachments (and the new issue-evidence field)
+// relay through this server to Google Drive (see uploadFile above) — this
+// just receives the resulting URLs as JSON.
 exports.create = async (req, res) => {
-  const { projectName, date, videoUrls, panelPhoto: panelPhotoUrl, reportAttachment: reportAttachmentUrl } = req.body;
+  const {
+    projectName,
+    date,
+    videoUrls,
+    panelPhoto: panelPhotoUrl,
+    issueIdentified,
+    issueDescription,
+    actionTaken,
+    issueEvidence: issueEvidenceUrl,
+    issueEvidenceType,
+  } = req.body;
   if (!projectName || !date) {
     return res.status(400).json({ message: "Project and date are required" });
   }
 
   const panelPhoto = panelPhotoUrl || "";
   const videos = parseVideoUrls(videoUrls) || [];
-  const reportAttachment = reportAttachmentUrl || "";
   const checklistAttachments = Array.isArray(req.body.checklistAttachments) ? req.body.checklistAttachments : [];
+  const issueEvidence = issueEvidenceUrl || "";
 
-  const drill = await FireMockDrill.create({ projectName, date, panelPhoto, videos, reportAttachment, checklistAttachments });
+  const drill = await FireMockDrill.create({
+    projectName,
+    date,
+    panelPhoto,
+    videos,
+    checklistAttachments,
+    issueIdentified: issueIdentified || "",
+    issueDescription: issueDescription || "",
+    actionTaken: actionTaken || "",
+    issueEvidence,
+    issueEvidenceType: issueEvidence ? issueEvidenceType || "" : "",
+  });
 
   const messageLines = [`🔥 *Fire Mock Drill* submitted for *${projectName}*`, `📅 Date: ${date}`];
   if (panelPhoto) messageLines.push("", "Panel Photo:", panelPhoto);
   checklistAttachments.forEach((url, idx) => messageLines.push(`Checklist Page ${idx + 1}: ${url}`));
-  if (reportAttachment) messageLines.push(`📄 Report: ${reportAttachment}`);
   videos.forEach((url, idx) => messageLines.push(`🎥 Video ${idx + 1}: ${url}`));
+  if (issueIdentified) messageLines.push("", `⚠️ Issue identified: ${issueIdentified}`);
+  if (issueDescription) messageLines.push(`Description: ${issueDescription}`);
+  if (actionTaken) messageLines.push(`Action taken: ${actionTaken}`);
+  if (issueEvidence) messageLines.push(`Evidence: ${issueEvidence}`);
 
   notifyWebhook(
     {
@@ -81,8 +105,11 @@ exports.create = async (req, res) => {
       date,
       panelPhoto,
       videoCount: videos.length,
-      reportAttachment,
       checklistCount: checklistAttachments.length,
+      issueIdentified,
+      issueDescription,
+      actionTaken,
+      issueEvidence,
       message: messageLines.join("\n"),
     },
     "N8N_FIRE_MOCK_DRILL_WEBHOOK_URL"
@@ -96,10 +123,13 @@ exports.create = async (req, res) => {
   checklistAttachments.forEach((url, idx) => {
     htmlParts.push(`<p>Checklist Page ${idx + 1}:<br/><a href="${url}">${url}</a></p>`);
   });
-  if (reportAttachment) htmlParts.push(`<p>Report: <a href="${reportAttachment}">${reportAttachment}</a></p>`);
   videos.forEach((url, idx) => {
     htmlParts.push(`<p>Video ${idx + 1}: <a href="${url}">${url}</a></p>`);
   });
+  if (issueIdentified) htmlParts.push(`<p><b>Issue identified:</b> ${issueIdentified}</p>`);
+  if (issueDescription) htmlParts.push(`<p><b>Description:</b> ${issueDescription}</p>`);
+  if (actionTaken) htmlParts.push(`<p><b>Action taken:</b> ${actionTaken}</p>`);
+  if (issueEvidence) htmlParts.push(`<p><b>Evidence:</b> <a href="${issueEvidence}">${issueEvidence}</a></p>`);
 
   sendAlertEmail({
     subject: `Fire Mock Drill submitted — ${projectName} (${date})`,
@@ -112,8 +142,11 @@ exports.create = async (req, res) => {
   // below routinely contain.
   const telegramLines = [`Fire Mock Drill submitted for ${projectName}`, `Date: ${date}`];
   checklistAttachments.forEach((url, idx) => telegramLines.push(`Checklist Page ${idx + 1}: ${url}`));
-  if (reportAttachment) telegramLines.push(`Report: ${reportAttachment}`);
   videos.forEach((url, idx) => telegramLines.push(`Video ${idx + 1}: ${url}`));
+  if (issueIdentified) telegramLines.push(`Issue identified: ${issueIdentified}`);
+  if (issueDescription) telegramLines.push(`Description: ${issueDescription}`);
+  if (actionTaken) telegramLines.push(`Action taken: ${actionTaken}`);
+  if (issueEvidence) telegramLines.push(`Evidence: ${issueEvidence}`);
 
   sendTelegramMessage({
     text: telegramLines.join("\n"),
@@ -149,8 +182,14 @@ exports.update = async (req, res) => {
   if (req.body.projectName) body.projectName = req.body.projectName;
   if (req.body.date) body.date = req.body.date;
   if (req.body.panelPhoto) body.panelPhoto = req.body.panelPhoto;
-  if (req.body.reportAttachment) body.reportAttachment = req.body.reportAttachment;
   if (Array.isArray(req.body.checklistAttachments)) body.checklistAttachments = req.body.checklistAttachments;
+  if (req.body.issueIdentified) body.issueIdentified = req.body.issueIdentified;
+  if (req.body.issueDescription !== undefined) body.issueDescription = req.body.issueDescription;
+  if (req.body.actionTaken !== undefined) body.actionTaken = req.body.actionTaken;
+  if (req.body.issueEvidence) {
+    body.issueEvidence = req.body.issueEvidence;
+    body.issueEvidenceType = req.body.issueEvidenceType || "";
+  }
 
   // The client sends the full desired list of video URLs each time (kept
   // existing ones + newly direct-uploaded ones), since videos never pass
