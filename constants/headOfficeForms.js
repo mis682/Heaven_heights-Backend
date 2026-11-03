@@ -240,7 +240,7 @@ const HEAD_OFFICE_FORMS = [
     formNumber: 15,
     label: "Sales MCB Form",
     statusOptions: MCB_STATUS_OPTIONS,
-    checkpoints: ["MCB-1", "MCB-2", "MCB-3"].map((label) => photo(label)),
+    checkpoints: ["MCB-1", "MCB-2"].map((label) => photo(label)),
   },
 ];
 
