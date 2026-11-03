@@ -124,4 +124,4 @@ async function countFilesCreatedBetween(startIso, endIso, folderId) {
   return total;
 }
 
-module.exports = { uploadToDrive, fetchDriveFile, isConfigured, countFilesCreatedBetween, getAccessTokenForDebug: getAccessToken };
+module.exports = { uploadToDrive, fetchDriveFile, isConfigured, countFilesCreatedBetween };

@@ -86,22 +86,6 @@ router.get(
   })
 );
 
-// TEMP debug route — which Google account this app's Drive integration is
-// authenticated as, so the user knows which email to share a new folder
-// with. Remove after use.
-router.get(
-  "/_debug-drive-whoami",
-  asyncHandler(async (req, res) => {
-    const { getAccessTokenForDebug } = require("../utils/googleDrive");
-    const accessToken = await getAccessTokenForDebug();
-    const r = await fetch("https://www.googleapis.com/drive/v3/about?fields=user", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const data = await r.json();
-    res.json(data);
-  })
-);
-
 // TEMP debug route — remove after the measurement window.
 router.get(
   "/_debug-metrics",
