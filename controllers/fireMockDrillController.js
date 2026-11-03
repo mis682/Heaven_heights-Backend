@@ -58,6 +58,7 @@ function parseVideoUrls(raw) {
 exports.create = async (req, res) => {
   const {
     projectName,
+    maintenanceSupervisor,
     date,
     videoUrls,
     panelPhoto: panelPhotoUrl,
@@ -78,6 +79,7 @@ exports.create = async (req, res) => {
 
   const drill = await FireMockDrill.create({
     projectName,
+    maintenanceSupervisor: maintenanceSupervisor || "",
     date,
     panelPhoto,
     videos,
@@ -90,6 +92,7 @@ exports.create = async (req, res) => {
   });
 
   const messageLines = [`🔥 *Fire Mock Drill* submitted for *${projectName}*`, `📅 Date: ${date}`];
+  if (maintenanceSupervisor) messageLines.push(`🛠️ Maintenance Supervisor: ${maintenanceSupervisor}`);
   if (panelPhoto) messageLines.push("", "Panel Photo:", panelPhoto);
   checklistAttachments.forEach((url, idx) => messageLines.push(`Checklist Page ${idx + 1}: ${url}`));
   videos.forEach((url, idx) => messageLines.push(`🎥 Video ${idx + 1}: ${url}`));
@@ -102,6 +105,7 @@ exports.create = async (req, res) => {
     {
       type: "fire_mock_drill",
       projectName,
+      maintenanceSupervisor,
       date,
       panelPhoto,
       videoCount: videos.length,
@@ -119,6 +123,7 @@ exports.create = async (req, res) => {
     `<p><b>Fire Mock Drill</b> submitted for <b>${projectName}</b></p>`,
     `<p>Date: ${date}</p>`,
   ];
+  if (maintenanceSupervisor) htmlParts.push(`<p>Maintenance Supervisor: ${maintenanceSupervisor}</p>`);
   if (panelPhoto) htmlParts.push(`<p>Panel Photo:<br/><img src="${panelPhoto}" alt="Panel photo" style="max-width:480px" /></p>`);
   checklistAttachments.forEach((url, idx) => {
     htmlParts.push(`<p>Checklist Page ${idx + 1}:<br/><a href="${url}">${url}</a></p>`);
@@ -141,6 +146,7 @@ exports.create = async (req, res) => {
   // whole send on any unescaped special character, which the raw URLs
   // below routinely contain.
   const telegramLines = [`Fire Mock Drill submitted for ${projectName}`, `Date: ${date}`];
+  if (maintenanceSupervisor) telegramLines.push(`Maintenance Supervisor: ${maintenanceSupervisor}`);
   checklistAttachments.forEach((url, idx) => telegramLines.push(`Checklist Page ${idx + 1}: ${url}`));
   videos.forEach((url, idx) => telegramLines.push(`Video ${idx + 1}: ${url}`));
   if (issueIdentified) telegramLines.push(`Issue identified: ${issueIdentified}`);
@@ -180,6 +186,7 @@ exports.update = async (req, res) => {
 
   const body = {};
   if (req.body.projectName) body.projectName = req.body.projectName;
+  if (req.body.maintenanceSupervisor) body.maintenanceSupervisor = req.body.maintenanceSupervisor;
   if (req.body.date) body.date = req.body.date;
   if (req.body.panelPhoto) body.panelPhoto = req.body.panelPhoto;
   if (Array.isArray(req.body.checklistAttachments)) body.checklistAttachments = req.body.checklistAttachments;
