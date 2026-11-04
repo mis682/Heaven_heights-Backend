@@ -353,7 +353,15 @@ async function computeMonthSummary({ month, year, search }) {
 
 exports.monthSummary = async (req, res) => {
   const summary = await computeMonthSummary(req.query);
-  res.json(summary);
+  res.json({
+    ...summary,
+    rows: summary.rows.map((r) => ({
+      ...r,
+      totalDays: summary.daysInMonth,
+      presentPercent: presentPercent(r.days),
+      ...statusTotals(r.days),
+    })),
+  });
 };
 
 exports.setAttendanceOverride = async (req, res) => {
