@@ -73,8 +73,14 @@ async function generateAndAttachIssueReport(drill) {
   }
 }
 
+// The client sends videoUrls as a real JSON array (via axios' JSON body),
+// not a stringified one — JSON.parse(anArray) coerces it to a comma-joined
+// string first and then fails to parse, silently discarding every video.
+// Handle the array directly; keep the JSON.parse fallback in case anything
+// ever sends it stringified instead.
 function parseVideoUrls(raw) {
   if (raw === undefined) return null;
+  if (Array.isArray(raw)) return raw.slice(0, 8);
   try {
     const arr = JSON.parse(raw);
     return Array.isArray(arr) ? arr.slice(0, 8) : [];
