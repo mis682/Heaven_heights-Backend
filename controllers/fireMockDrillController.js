@@ -132,7 +132,7 @@ exports.create = async (req, res) => {
 
   const messageLines = [`🔥 *Fire Mock Drill* submitted for *${projectName}*`, `📅 Date: ${date}`];
   if (maintenanceSupervisor) messageLines.push(`🛠️ Maintenance Supervisor: ${maintenanceSupervisor}`);
-  if (panelPhoto) messageLines.push("", "Panel Photo:", panelPhoto);
+  if (panelPhoto) messageLines.push("", `Panel Photo: ${panelPhoto}`);
   checklistAttachments.forEach((url, idx) => messageLines.push(`Checklist Page ${idx + 1}: ${url}`));
   videos.forEach((url, idx) => messageLines.push(`🎥 Video ${idx + 1}: ${url}`));
   if (issueIdentified) messageLines.push("", `⚠️ Issue identified: ${issueIdentified}`);
