@@ -25,9 +25,12 @@ exports.submissionFor = async (req, res) => {
 
   const attachments = [];
   if (submission.panelPhoto) attachments.push({ label: "Panel Photo", url: submission.panelPhoto });
-  (submission.videos || []).forEach((url, idx) => {
-    if (url) attachments.push({ label: `Video ${idx + 1}`, url });
-  });
+  // All 8 video slots always show, even if a particular one wasn't
+  // uploaded — the coordinator marks a missing one "Form not fill" instead
+  // of it silently not appearing as a checkpoint at all.
+  for (let i = 0; i < 8; i++) {
+    attachments.push({ label: `Video ${i + 1}`, url: (submission.videos || [])[i] || "" });
+  }
   (submission.checklistAttachments || []).forEach((url, idx) => {
     if (url) attachments.push({ label: `Checklist Page ${idx + 1}`, url });
   });
