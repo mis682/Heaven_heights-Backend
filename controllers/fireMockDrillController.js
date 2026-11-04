@@ -149,7 +149,7 @@ exports.create = async (req, res) => {
       issueEvidence,
       message: messageLines.join("\n"),
     },
-    "N8N_FIRE_MOCK_DRILL_WEBHOOK_URL"
+    "N8N_FIRE_MOCK_DRILL_WEBHOOK_URL_HH"
   );
 
   const htmlParts = [
