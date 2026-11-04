@@ -53,10 +53,11 @@ function pdfDocToBuffer(doc) {
   });
 }
 
-// Fire-and-forget, same as the webhook/email/Telegram notifications below —
-// doesn't delay the submitter's response. Failing silently here just means
-// issueReportPdf stays empty on this drill; it never blocks the submission
-// itself.
+// Awaited before the webhook/email/Telegram notifications fire (unlike a
+// true fire-and-forget) so this PDF's link can actually be included in
+// them — those notifications are the whole point of generating it eagerly.
+// Returns the Drive URL, or "" if generation/upload fails (never throws —
+// a failure here shouldn't block the submission itself).
 async function generateAndAttachIssueReport(drill) {
   try {
     const buffer = await pdfDocToBuffer(buildFireMockDrillIssuePdf(drill));
@@ -68,8 +69,10 @@ async function generateAndAttachIssueReport(drill) {
       folderId,
     });
     await FireMockDrill.findByIdAndUpdate(drill._id, { issueReportPdf: url });
+    return url;
   } catch (err) {
     console.error("Fire Mock Drill issue report PDF failed:", err.message);
+    return "";
   }
 }
 
@@ -128,7 +131,7 @@ exports.create = async (req, res) => {
     issueEvidenceType: issueEvidence ? issueEvidenceType || "" : "",
   });
 
-  generateAndAttachIssueReport(drill);
+  const issueReportPdf = await generateAndAttachIssueReport(drill);
 
   const messageLines = [`🔥 *Fire Mock Drill* submitted for *${projectName}*`, `📅 Date: ${date}`];
   if (maintenanceSupervisor) messageLines.push(`🛠️ Maintenance Supervisor: ${maintenanceSupervisor}`);
@@ -153,6 +156,7 @@ exports.create = async (req, res) => {
       issueDescription,
       actionTaken,
       issueEvidence,
+      issueReportPdf,
       message: messageLines.join("\n"),
     },
     "N8N_FIRE_MOCK_DRILL_WEBHOOK_URL_HH"
@@ -174,6 +178,7 @@ exports.create = async (req, res) => {
   if (issueDescription) htmlParts.push(`<p><b>Description:</b> ${issueDescription}</p>`);
   if (actionTaken) htmlParts.push(`<p><b>Action taken:</b> ${actionTaken}</p>`);
   if (issueEvidence) htmlParts.push(`<p><b>Evidence:</b> <a href="${issueEvidence}">${issueEvidence}</a></p>`);
+  if (issueReportPdf) htmlParts.push(`<p><b>Issue Report:</b> <a href="${issueReportPdf}">Download PDF</a></p>`);
 
   sendAlertEmail({
     subject: `Fire Mock Drill submitted — ${projectName} (${date})`,
@@ -192,6 +197,7 @@ exports.create = async (req, res) => {
   if (issueDescription) telegramLines.push(`Description: ${issueDescription}`);
   if (actionTaken) telegramLines.push(`Action taken: ${actionTaken}`);
   if (issueEvidence) telegramLines.push(`Evidence: ${issueEvidence}`);
+  if (issueReportPdf) telegramLines.push(`Issue Report PDF: ${issueReportPdf}`);
 
   sendTelegramMessage({
     text: telegramLines.join("\n"),
