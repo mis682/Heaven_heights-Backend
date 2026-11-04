@@ -16,6 +16,10 @@ const FireMockDrillSchema = new mongoose.Schema(
     // by, unlike Cloudinary URLs — this is set at submission time from the
     // actual file picked, so the admin view knows which tag to render.
     issueEvidenceType: { type: String, enum: ["photo", "video", ""], default: "" },
+    // Auto-generated at submission time (see utils/fireMockDrillIssuePdf.js)
+    // — a one-page summary of project/supervisor/date plus the 3 issue
+    // questions and whatever was actually answered, uploaded to Drive.
+    issueReportPdf: { type: String, default: "" },
   },
   { timestamps: true }
 );

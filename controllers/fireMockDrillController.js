@@ -4,6 +4,7 @@ const { sendAlertEmail } = require("../utils/mailer");
 const { sendTelegramMessage } = require("../utils/telegram");
 const { uploadToDrive } = require("../utils/googleDrive");
 const { compressVideo } = require("../utils/videoCompress");
+const { buildFireMockDrillIssuePdf } = require("../utils/fireMockDrillIssuePdf");
 
 const PROJECTS = ["Regal Garden", "Neo Meridian", "Milestone", "OBC", "Eden Garden"];
 
@@ -41,6 +42,36 @@ exports.uploadFile = async (req, res) => {
   const { url } = await uploadToDrive({ buffer, filename, mimeType, folderId });
   res.json({ url });
 };
+
+function pdfDocToBuffer(doc) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    doc.on("data", (c) => chunks.push(c));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+    doc.end();
+  });
+}
+
+// Fire-and-forget, same as the webhook/email/Telegram notifications below —
+// doesn't delay the submitter's response. Failing silently here just means
+// issueReportPdf stays empty on this drill; it never blocks the submission
+// itself.
+async function generateAndAttachIssueReport(drill) {
+  try {
+    const buffer = await pdfDocToBuffer(buildFireMockDrillIssuePdf(drill));
+    const folderId = process.env.GOOGLE_DRIVE_FIRE_MOCK_DRILL_FOLDER_ID || undefined;
+    const { url } = await uploadToDrive({
+      buffer,
+      filename: `fire-mock-drill-issue-report-${drill._id}.pdf`,
+      mimeType: "application/pdf",
+      folderId,
+    });
+    await FireMockDrill.findByIdAndUpdate(drill._id, { issueReportPdf: url });
+  } catch (err) {
+    console.error("Fire Mock Drill issue report PDF failed:", err.message);
+  }
+}
 
 function parseVideoUrls(raw) {
   if (raw === undefined) return null;
@@ -90,6 +121,8 @@ exports.create = async (req, res) => {
     issueEvidence,
     issueEvidenceType: issueEvidence ? issueEvidenceType || "" : "",
   });
+
+  generateAndAttachIssueReport(drill);
 
   const messageLines = [`🔥 *Fire Mock Drill* submitted for *${projectName}*`, `📅 Date: ${date}`];
   if (maintenanceSupervisor) messageLines.push(`🛠️ Maintenance Supervisor: ${maintenanceSupervisor}`);
