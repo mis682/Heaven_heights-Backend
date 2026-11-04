@@ -141,7 +141,10 @@ exports.create = async (req, res) => {
   if (issueIdentified) messageLines.push("", `⚠️ Issue identified: ${issueIdentified}`);
   if (issueDescription) messageLines.push(`Description: ${issueDescription}`);
   if (actionTaken) messageLines.push(`Action taken: ${actionTaken}`);
-  if (issueEvidence) messageLines.push(`Evidence: ${issueEvidence}`);
+  // "(Video)" suffix lets the n8n Slack-formatting step tell this apart from
+  // a photo — a video URL can't be a Slack "image" block (Slack rejects the
+  // whole message with invalid_blocks if one is), so it needs to skip it.
+  if (issueEvidence) messageLines.push(`Evidence${issueEvidenceType === "video" ? " (Video)" : ""}: ${issueEvidence}`);
 
   notifyWebhook(
     {
