@@ -20,6 +20,10 @@ const FireMockDrillSchema = new mongoose.Schema(
     // — a one-page summary of project/supervisor/date plus the 3 issue
     // questions and whatever was actually answered, uploaded to Drive.
     issueReportPdf: { type: String, default: "" },
+    // Set by the coordinator from the Submissions table (not the submitter)
+    // — tracks the identified issue through to resolution so a manager can
+    // tell at a glance whether it's still open.
+    issueStatus: { type: String, enum: ["Open", "Closed", "WIP", "Pending", "Complete", ""], default: "" },
   },
   { timestamps: true }
 );

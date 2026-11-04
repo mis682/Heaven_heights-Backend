@@ -211,9 +211,11 @@ exports.create = async (req, res) => {
 };
 
 exports.list = async (req, res) => {
-  const { projectName, search } = req.query;
+  const { projectName, maintenanceSupervisor, date, search } = req.query;
   const filter = {};
   if (projectName) filter.projectName = projectName;
+  if (maintenanceSupervisor) filter.maintenanceSupervisor = maintenanceSupervisor;
+  if (date) filter.date = date;
   if (search) {
     const re = new RegExp(search, "i");
     filter.$or = [{ projectName: re }, { date: re }];
@@ -245,6 +247,7 @@ exports.update = async (req, res) => {
     body.issueEvidence = req.body.issueEvidence;
     body.issueEvidenceType = req.body.issueEvidenceType || "";
   }
+  if (req.body.issueStatus !== undefined) body.issueStatus = req.body.issueStatus;
 
   // The client sends the full desired list of video URLs each time (kept
   // existing ones + newly direct-uploaded ones), since videos never pass
