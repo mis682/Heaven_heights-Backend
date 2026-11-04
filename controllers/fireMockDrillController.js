@@ -246,3 +246,7 @@ exports.remove = async (req, res) => {
   if (!drill) return res.status(404).json({ message: "Not found" });
   res.json({ message: "Deleted" });
 };
+
+// Shared with fireMockDrillReportController.js's Daily Report project
+// dropdown, so both pick from the exact same list.
+exports.PROJECTS = PROJECTS;
