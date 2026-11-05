@@ -35,8 +35,15 @@ const SAMPLE_APARTMENT_FORMS = [
   },
   {
     formNumber: 3,
-    label: "Sample Apartment Form 3",
-    checkpoints: [photo("Placeholder Checkpoint")],
+    label: "Regal Garden Sample Unit Form",
+    checkpoints: [
+      photo("Unit No-405 - Cleaning Image 1"),
+      photo("Unit No-405 - Cleaning Image 2"),
+      photo("Unit No-405 - Cleaning Image 3"),
+      photo("Unit No-406 - Cleaning Image 1"),
+      photo("Unit No-406 - Cleaning Image 2"),
+      photo("Unit No-406 - Cleaning Image 3"),
+    ],
   },
 ];
 
