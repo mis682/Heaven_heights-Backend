@@ -7,8 +7,19 @@ function photo(label, opts = {}) {
 const SAMPLE_APARTMENT_FORMS = [
   {
     formNumber: 1,
-    label: "Sample Apartment Form 1",
-    checkpoints: [photo("Placeholder Checkpoint")],
+    label: "EG Sample Apartments Cleaning Form",
+    checkpoints: [
+      photo("EG-101 2 BHK - Cleaning Image 1"),
+      photo("EG-101 2 BHK - Cleaning Image 2"),
+      photo("EG-102 2 BHK - Cleaning Image 1"),
+      photo("EG-102 2 BHK - Cleaning Image 2"),
+      photo("EG-117 3 BHK - Cleaning Image 1"),
+      photo("EG-117 3 BHK - Cleaning Image 2"),
+      photo("EG-118 1 RK - Cleaning Image 1"),
+      photo("EG-118 1 RK - Cleaning Image 2"),
+      photo("Villa-43 - Cleaning Image 1"),
+      photo("Villa-43 - Cleaning Image 2"),
+    ],
   },
   {
     formNumber: 2,
