@@ -260,6 +260,9 @@ function getCheckpointGoodStatus(checkpointLabel) {
     if (checkpoint.type === "select" && Array.isArray(checkpoint.options) && checkpoint.options.includes("Yes")) {
       return "Yes";
     }
+    // MCB forms track a switch that should be OFF, not ON — the opposite of
+    // every other form, where statusOptions[0] is the compliant value.
+    if (form.statusOptions === MCB_STATUS_OPTIONS) return "OFF";
     return form.statusOptions ? form.statusOptions[0] : RESERVE_REGAL_CLUB_STATUS_OPTIONS[0];
   }
   return RESERVE_REGAL_CLUB_STATUS_OPTIONS[0];
