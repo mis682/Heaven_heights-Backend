@@ -52,7 +52,15 @@ exports.getGuardKpi = async (req, res) => {
 
       if (info.slaStatus === "no_photo") {
         const guard = touch(report?.entries?.[idx]?.guardName);
-        if (guard) guard.noPhoto += 1;
+        if (guard) {
+          guard.noPhoto += 1;
+          guard.lateDetails.push({
+            date,
+            checkpointLabel: slot.checkpointLabel,
+            scheduledTime: slot.time,
+            lateByMinutes: null,
+          });
+        }
         return;
       }
 
