@@ -1,7 +1,7 @@
 const ExcelJS = require("exceljs");
 const HeadOfficeDailyReport = require("../models/HeadOfficeDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
-const { HEAD_OFFICE_FORMS, getFormByNumber } = require("../constants/headOfficeForms");
+const { HEAD_OFFICE_FORMS, getFormByNumber, getCheckpointGoodStatus } = require("../constants/headOfficeForms");
 const { buildHeadOfficeReportPdf } = require("../utils/headOfficeReportPdf");
 const { buildCardReportPdf } = require("../utils/cardReportPdf");
 const { computeChecklistKpi } = require("../utils/checklistKpi");
@@ -161,7 +161,7 @@ exports.kpi = async (req, res) => {
     from,
     to,
     extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
-    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    goodStatus: (e) => e.status === getCheckpointGoodStatus(e.checkpointLabel),
     groupKey: (e) => e.checkpointLabel,
     groupLabel: (e) => e.checkpointLabel,
   });
@@ -175,7 +175,7 @@ exports.kpiExportPdf = async (req, res) => {
     from,
     to,
     extraFilter: formNumber ? { formNumber: Number(formNumber) } : {},
-    goodStatus: RESERVE_REGAL_CLUB_STATUS_OPTIONS[0],
+    goodStatus: (e) => e.status === getCheckpointGoodStatus(e.checkpointLabel),
     groupKey: (e) => e.checkpointLabel,
     groupLabel: (e) => e.checkpointLabel,
   });

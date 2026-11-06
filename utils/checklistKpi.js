@@ -9,6 +9,11 @@
 // ("") status — counts against the group, matching the coordinator's own
 // rule: every day needs a real OK/Present/Clean entry, anything else is a
 // remark that needs following up on, not a free pass.
+//
+// `goodStatus` is usually a single string, but a module whose checkpoints
+// don't all share one vocabulary (e.g. Head Office: most are Clean/Not
+// Clean, but Handwash is Yes/No and the MCB forms are ON/OFF) can instead
+// pass a function `(entry) => boolean` to decide per-entry.
 async function computeChecklistKpi(Model, { from, to, extraFilter = {}, goodStatus, groupKey, groupLabel }) {
   const filter = { status: "submitted", reportDate: { $gte: from, $lte: to }, ...extraFilter };
   const reports = await Model.find(filter).select("entries reportDate").lean();
@@ -24,7 +29,8 @@ async function computeChecklistKpi(Model, { from, to, extraFilter = {}, goodStat
       const g = byGroup.get(key);
       g.total += 1;
       const status = entry.status || "";
-      if (status === goodStatus) {
+      const isGood = typeof goodStatus === "function" ? goodStatus(entry) : status === goodStatus;
+      if (isGood) {
         g.ok += 1;
       } else {
         g.notOk += 1;

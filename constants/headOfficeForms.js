@@ -11,6 +11,7 @@ function photo(label, opts = {}) {
 }
 
 const { MCB_STATUS_OPTIONS } = require("./mcbReportStatus");
+const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("./gcClubReportStatus");
 
 const HEAD_OFFICE_FORMS = [
   {
@@ -247,4 +248,21 @@ function getFormByNumber(formNumber) {
   return HEAD_OFFICE_FORMS.find((f) => f.formNumber === Number(formNumber));
 }
 
-module.exports = { HEAD_OFFICE_FORMS, getFormByNumber, photo };
+// The KPI page treats every checkpoint as if it shared one Clean/Not Clean
+// vocabulary, but a "select" checkpoint (Handwash: Yes/No) or an entire
+// MCB-vocabulary form (ON/OFF) needs a different "good" value — look up
+// the checkpoint's own form to find it instead of assuming "Clean" for
+// everything.
+function getCheckpointGoodStatus(checkpointLabel) {
+  for (const form of HEAD_OFFICE_FORMS) {
+    const checkpoint = form.checkpoints.find((c) => c.label === checkpointLabel);
+    if (!checkpoint) continue;
+    if (checkpoint.type === "select" && Array.isArray(checkpoint.options) && checkpoint.options.includes("Yes")) {
+      return "Yes";
+    }
+    return form.statusOptions ? form.statusOptions[0] : RESERVE_REGAL_CLUB_STATUS_OPTIONS[0];
+  }
+  return RESERVE_REGAL_CLUB_STATUS_OPTIONS[0];
+}
+
+module.exports = { HEAD_OFFICE_FORMS, getFormByNumber, getCheckpointGoodStatus, photo };
