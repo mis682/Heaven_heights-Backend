@@ -6,6 +6,7 @@ const asyncHandler = require("../utils/asyncHandler");
 router.get("/meta", asyncHandler(ctrl.meta));
 router.get("/proof", asyncHandler(ctrl.getCheckpointProof));
 router.get("/guard-kpi", asyncHandler(ctrl.getGuardKpi));
+router.get("/guard-kpi/export-pdf", asyncHandler(ctrl.exportGuardKpiPdf));
 
 router.get("/submitted", asyncHandler(ctrl.listSubmittedReports));
 router.get("/open-draft", asyncHandler(ctrl.getOpenDraft));

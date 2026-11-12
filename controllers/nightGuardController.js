@@ -4,6 +4,7 @@ const NightGuardDailyReport = require("../models/NightGuardDailyReport");
 const { fileToUrl } = require("../middleware/upload");
 const { notifyWebhook } = require("../utils/webhook");
 const { buildNightGuardReportPdf, buildNightGuardReportPdfCard } = require("../utils/nightGuardReportPdf");
+const { buildGuardKpiPdf } = require("../utils/guardKpiPdf");
 const { buildIstDateRangeFilter } = require("../utils/istDateRange");
 const { computeNightGuardKpi } = require("../utils/nightGuardKpi");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
@@ -82,6 +83,30 @@ exports.getGuardKpi = async (req, res) => {
   if (!from || !to) return res.status(400).json({ message: "from and to are required" });
   const rows = await computeNightGuardKpi({ from, to });
   res.json({ rows });
+};
+
+exports.exportGuardKpiPdf = async (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeNightGuardKpi({ from, to });
+
+  const totals = rows.reduce(
+    (acc, r) => ({
+      onTime: acc.onTime + r.onTime,
+      late: acc.late + r.late,
+      noPhoto: acc.noPhoto + r.noPhoto,
+      total: acc.total + r.total,
+    }),
+    { onTime: 0, late: 0, noPhoto: 0, total: 0 }
+  );
+  totals.latePercent = totals.total > 0 ? (totals.late / totals.total) * 100 : 0;
+  totals.missedPercent = totals.total > 0 ? (totals.noPhoto / totals.total) * 100 : 0;
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=night-guard-guard-kpi-${from}-to-${to}.pdf`);
+  const doc = buildGuardKpiPdf("Night Guard — Guard KPI", from, to, rows, totals);
+  doc.pipe(res);
+  doc.end();
 };
 
 // --- Coordinator daily report builder ---

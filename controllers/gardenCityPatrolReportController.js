@@ -3,6 +3,7 @@ const GardenCityPatrolReport = require("../models/GardenCityPatrolReport");
 const { GARDEN_CITY_SCHEDULE } = require("../constants/gardenCitySchedule");
 const { STATUS_OPTIONS } = require("../constants/reportStatus");
 const { buildGardenCityReportPdf, buildGardenCityReportPdfCard } = require("../utils/gardenCityReportPdf");
+const { buildGuardKpiPdf } = require("../utils/guardKpiPdf");
 const { computeGardenCitySla, addDaysToDateKey, LATE_THRESHOLD_MINUTES } = require("../utils/gardenCitySla");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
@@ -27,10 +28,7 @@ exports.getSla = async (req, res) => {
 // of who the coordinator assigned); a checkpoint with no photo at all is
 // credited to the coordinator's assignment instead, since that's the only
 // name available to hold accountable for the miss.
-exports.getGuardKpi = async (req, res) => {
-  const { from, to } = req.query;
-  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
-
+async function computeGardenCityGuardKpiRows(from, to) {
   const perGuard = new Map();
   const touch = (guardName) => {
     if (!guardName) return null;
@@ -80,14 +78,43 @@ exports.getGuardKpi = async (req, res) => {
     });
   }
 
-  const rows = Array.from(perGuard.values())
+  return Array.from(perGuard.values())
     .map((g) => {
       const total = g.onTime + g.late + g.noPhoto;
       return { ...g, total, onTimePercent: total > 0 ? Math.round((g.onTime / total) * 100) : 0 };
     })
     .sort((a, b) => a.onTimePercent - b.onTimePercent);
+}
 
+exports.getGuardKpi = async (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeGardenCityGuardKpiRows(from, to);
   res.json({ from, to, lateThresholdMinutes: LATE_THRESHOLD_MINUTES, rows });
+};
+
+exports.exportGuardKpiPdf = async (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ message: "from and to are required" });
+  const rows = await computeGardenCityGuardKpiRows(from, to);
+
+  const totals = rows.reduce(
+    (acc, r) => ({
+      onTime: acc.onTime + r.onTime,
+      late: acc.late + r.late,
+      noPhoto: acc.noPhoto + r.noPhoto,
+      total: acc.total + r.total,
+    }),
+    { onTime: 0, late: 0, noPhoto: 0, total: 0 }
+  );
+  totals.latePercent = totals.total > 0 ? (totals.late / totals.total) * 100 : 0;
+  totals.missedPercent = totals.total > 0 ? (totals.noPhoto / totals.total) * 100 : 0;
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=garden-city-guard-kpi-${from}-to-${to}.pdf`);
+  const doc = buildGuardKpiPdf("Garden City — Guard KPI", from, to, rows, totals);
+  doc.pipe(res);
+  doc.end();
 };
 
 exports.getByDate = async (req, res) => {

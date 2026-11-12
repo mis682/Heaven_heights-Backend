@@ -4,6 +4,7 @@ const PatrolSubmission = require("../models/PatrolSubmission");
 const Project = require("../models/Project");
 const Checkpoint = require("../models/Checkpoint");
 const { buildCheckpointReportPdf, buildCheckpointReportPdfCard } = require("../utils/checkpointReportPdf");
+const { buildGuardKpiPdf } = require("../utils/guardKpiPdf");
 const { computeFixedHourGuardKpi } = require("../utils/patrolRoundSla");
 const { recordMetric } = require("../utils/requestMetrics"); // TEMP diagnostic
 
@@ -190,14 +191,9 @@ exports.exportReport = async (req, res) => {
 // site's real fixed night-round schedule (see NIGHT_SCHEDULES in
 // patrolRoundSla.js) rather than a coordinator-typed label or a
 // guard-relative anchor — both turned out not to reliably reflect reality.
-exports.getGuardKpi = async (req, res) => {
-  const { projectSlug, from, to } = req.query;
-  if (!projectSlug || !from || !to) {
-    return res.status(400).json({ message: "projectSlug, from and to are required" });
-  }
-
+async function fetchFormattedGuardKpiRows(projectSlug, from, to) {
   const project = await Project.findOne({ slug: projectSlug });
-  if (!project) return res.status(404).json({ message: "Project not found" });
+  if (!project) return null;
 
   const checkpoints = await Checkpoint.find({ projectId: project._id }).sort({ order: 1 });
   const checkpointLabel = (id) => checkpoints.find((c) => c.checkpointId === id)?.name || `Checkpoint ${id}`;
@@ -225,7 +221,46 @@ exports.getGuardKpi = async (req, res) => {
     })),
   }));
 
-  res.json({ rows: formatted });
+  return { project, rows: formatted };
+}
+
+exports.getGuardKpi = async (req, res) => {
+  const { projectSlug, from, to } = req.query;
+  if (!projectSlug || !from || !to) {
+    return res.status(400).json({ message: "projectSlug, from and to are required" });
+  }
+
+  const result = await fetchFormattedGuardKpiRows(projectSlug, from, to);
+  if (!result) return res.status(404).json({ message: "Project not found" });
+  res.json({ rows: result.rows });
+};
+
+exports.exportGuardKpiPdf = async (req, res) => {
+  const { projectSlug, from, to } = req.query;
+  if (!projectSlug || !from || !to) {
+    return res.status(400).json({ message: "projectSlug, from and to are required" });
+  }
+
+  const result = await fetchFormattedGuardKpiRows(projectSlug, from, to);
+  if (!result) return res.status(404).json({ message: "Project not found" });
+
+  const totals = result.rows.reduce(
+    (acc, r) => ({
+      onTime: acc.onTime + r.onTime,
+      late: acc.late + r.late,
+      noPhoto: acc.noPhoto + r.noPhoto,
+      total: acc.total + r.total,
+    }),
+    { onTime: 0, late: 0, noPhoto: 0, total: 0 }
+  );
+  totals.latePercent = totals.total > 0 ? (totals.late / totals.total) * 100 : 0;
+  totals.missedPercent = totals.total > 0 ? (totals.noPhoto / totals.total) * 100 : 0;
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=${result.project.name.toLowerCase().replace(/\s+/g, "-")}-guard-kpi-${from}-to-${to}.pdf`);
+  const doc = buildGuardKpiPdf(`${result.project.name} — Guard KPI`, from, to, result.rows, totals);
+  doc.pipe(res);
+  doc.end();
 };
 
 exports.exportReportPdf = async (req, res) => {
