@@ -1,6 +1,7 @@
 const ExcelJS = require("exceljs");
 const HeadOfficeDailyReport = require("../models/HeadOfficeDailyReport");
 const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
+const { HEAD_OFFICE_STATUS_OPTIONS } = require("../constants/headOfficeStatus");
 const { HEAD_OFFICE_FORMS, getFormByNumber, getCheckpointGoodStatus } = require("../constants/headOfficeForms");
 const { buildHeadOfficeReportPdf } = require("../utils/headOfficeReportPdf");
 const { buildCardReportPdf } = require("../utils/cardReportPdf");
@@ -14,7 +15,7 @@ const { buildChecklistKpiPdf } = require("../utils/checklistKpiPdf");
 // MCB forms track ON/OFF, not Clean/Not Clean) via its own `statusOptions`.
 exports.meta = async (req, res) => {
   res.json({
-    statusOptions: RESERVE_REGAL_CLUB_STATUS_OPTIONS,
+    statusOptions: HEAD_OFFICE_STATUS_OPTIONS,
     forms: HEAD_OFFICE_FORMS.map((f) => ({
       formNumber: f.formNumber,
       label: f.label,

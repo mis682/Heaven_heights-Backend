@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { RESERVE_REGAL_CLUB_STATUS_OPTIONS } = require("../constants/gcClubReportStatus");
+const { HEAD_OFFICE_STATUS_OPTIONS } = require("../constants/headOfficeStatus");
 const { MCB_STATUS_OPTIONS } = require("../constants/mcbReportStatus");
 
 // "Yes"/"No" (a "select"-type checkpoint, e.g. Handwash) and the MCB forms'
@@ -11,7 +11,7 @@ const HeadOfficeEntrySchema = new mongoose.Schema(
     checkpointLabel: { type: String, required: true },
     status: {
       type: String,
-      enum: [...new Set([...RESERVE_REGAL_CLUB_STATUS_OPTIONS, "Yes", "No", ...MCB_STATUS_OPTIONS, ""])],
+      enum: [...new Set([...HEAD_OFFICE_STATUS_OPTIONS, "Yes", "No", ...MCB_STATUS_OPTIONS, ""])],
       default: "",
     },
   },
