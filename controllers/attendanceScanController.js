@@ -403,13 +403,13 @@ exports.exportTeamAttendanceExcel = async (req, res) => {
     { header: "Employee ID", key: "employeeId", width: 14 },
     { header: "Site", key: "siteName", width: 22 },
     { header: "Present %", key: "presentPercent", width: 10 },
+    { header: "Payable Days", key: "payableDays", width: 13 },
     { header: "Total Present", key: "totalPresent", width: 12 },
     { header: "Total Absent", key: "totalAbsent", width: 12 },
     { header: "Total Half Day", key: "totalHalfDay", width: 13 },
     { header: "Total Single Punch", key: "totalSinglePunch", width: 15 },
     { header: "Holiday", key: "totalHoliday", width: 10 },
     { header: "Monthly Leave", key: "totalMonthlyLeave", width: 14 },
-    { header: "Payable Days", key: "payableDays", width: 13 },
   ];
   const fixedColumnCount = columns.length;
   for (let d = 1; d <= daysInMonth; d += 1) columns.push({ header: String(d), key: `day${d}`, width: 5 });
