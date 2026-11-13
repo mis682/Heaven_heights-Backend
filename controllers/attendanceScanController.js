@@ -21,12 +21,15 @@ function presentPercent(days) {
 }
 
 function statusTotals(days) {
-  return {
-    totalPresent: days.filter((d) => d.status === "P").length,
-    totalAbsent: days.filter((d) => d.status === "A").length,
-    totalHalfDay: days.filter((d) => d.status === "HD").length,
-    totalSinglePunch: days.filter((d) => d.status === "SP").length,
-  };
+  const totalPresent = days.filter((d) => d.status === "P").length;
+  const totalAbsent = days.filter((d) => d.status === "A").length;
+  const totalHalfDay = days.filter((d) => d.status === "HD").length;
+  const totalSinglePunch = days.filter((d) => d.status === "SP").length;
+  const totalMonthlyLeave = days.filter((d) => d.status === "ML").length;
+  const totalHoliday = days.filter((d) => d.status === "H").length;
+  // Half Day counts as half a payable day (e.g. 3 Half Days -> 1.5 days).
+  const payableDays = totalPresent + totalMonthlyLeave + totalHoliday + totalHalfDay * 0.5;
+  return { totalPresent, totalAbsent, totalHalfDay, totalSinglePunch, totalMonthlyLeave, totalHoliday, payableDays };
 }
 
 // A night shift open with an "in" scan is treated as still open (its next
@@ -389,7 +392,7 @@ exports.clearAttendanceOverride = async (req, res) => {
 exports.exportTeamAttendanceExcel = async (req, res) => {
   const { daysInMonth, rows, month, year } = await computeMonthSummary(req.query);
 
-  const FILL = { P: "FF22C55E", A: "FFEF4444", HD: "FF3B82F6", SP: "FFF59E0B" };
+  const FILL = { P: "FF22C55E", A: "FFEF4444", HD: "FF3B82F6", SP: "FFF59E0B", ML: "FF14B8A6", H: "FFA855F7" };
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(`Attendance ${MONTH_NAMES[month - 1]} ${year}`);
@@ -404,6 +407,9 @@ exports.exportTeamAttendanceExcel = async (req, res) => {
     { header: "Total Absent", key: "totalAbsent", width: 12 },
     { header: "Total Half Day", key: "totalHalfDay", width: 13 },
     { header: "Total Single Punch", key: "totalSinglePunch", width: 15 },
+    { header: "Holiday", key: "totalHoliday", width: 10 },
+    { header: "Monthly Leave", key: "totalMonthlyLeave", width: 14 },
+    { header: "Payable Days", key: "payableDays", width: 13 },
   ];
   const fixedColumnCount = columns.length;
   for (let d = 1; d <= daysInMonth; d += 1) columns.push({ header: String(d), key: `day${d}`, width: 5 });
