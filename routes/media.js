@@ -55,6 +55,17 @@ router.get(
     const contentType = driveRes.headers.get("content-type") || "application/octet-stream";
     const width = parseInt(req.query.w, 10);
 
+    // Normally this streams inline (so <img>/<video> tags across the whole
+    // app can keep using it for previews) — ?download=1 opts into an actual
+    // Save-As instead, for links meant to be downloaded (e.g. Fire Mock
+    // Drill's checklist page attachments), since this route's cross-origin
+    // (Vercel frontend -> Render backend) means the <a download> HTML
+    // attribute alone is ignored by the browser.
+    if (req.query.download) {
+      const ext = contentType.split("/")[1]?.split(";")[0] || "bin";
+      res.setHeader("Content-Disposition", `attachment; filename="attachment.${ext}"`);
+    }
+
     // Archived files are historical records — once written, they never
     // change — so there's no reason to ever re-fetch the same one from
     // Drive through this proxy. `immutable` skips revalidation entirely;
