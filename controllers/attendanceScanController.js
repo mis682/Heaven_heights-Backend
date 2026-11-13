@@ -403,6 +403,7 @@ exports.exportTeamAttendanceExcel = async (req, res) => {
     { header: "Employee ID", key: "employeeId", width: 14 },
     { header: "Site", key: "siteName", width: 22 },
     { header: "Present %", key: "presentPercent", width: 10 },
+    { header: "Total Days", key: "totalDays", width: 10 },
     { header: "Payable Days", key: "payableDays", width: 13 },
     { header: "Total Present", key: "totalPresent", width: 12 },
     { header: "Total Absent", key: "totalAbsent", width: 12 },
@@ -424,6 +425,7 @@ exports.exportTeamAttendanceExcel = async (req, res) => {
       employeeId: row.employeeId,
       siteName: row.siteName,
       presentPercent: `${presentPercent(row.days)}%`,
+      totalDays: daysInMonth,
       ...totals,
     };
     row.days.forEach((d) => {
