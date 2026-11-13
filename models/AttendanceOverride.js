@@ -8,7 +8,7 @@ const AttendanceOverrideSchema = new mongoose.Schema(
   {
     employeeId: { type: String, required: true },
     date: { type: String, required: true }, // "YYYY-MM-DD"
-    status: { type: String, enum: ["P", "A", "HD", "SP"], required: true },
+    status: { type: String, enum: ["P", "A", "HD", "SP", "ML", "H"], required: true },
     setBy: { type: String, default: "" },
   },
   { timestamps: true }
