@@ -22,6 +22,10 @@ const StaffProfileDetailSchema = new mongoose.Schema(
     basicSalary: { type: Number, default: 0 },
     grossSalary: { type: Number, default: 0 },
     petrolAmount: { type: Number, default: 0 },
+    // Set by HR whenever a one-off amount (e.g. an advance recovery) needs
+    // to come out of this month's payroll — not tied to a specific month,
+    // HR resets it to 0 once recovered.
+    salaryDeduction: { type: Number, default: 0 },
     employeePf: { type: Number, default: 0 },
     employerPf: { type: Number, default: 0 },
     employeeEsic: { type: Number, default: 0 },

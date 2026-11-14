@@ -23,8 +23,19 @@ const DETAIL_FIELDS = [
   "employerPf",
   "employeeEsic",
   "employerEsic",
+  "salaryDeduction",
 ];
-const NUMBER_FIELDS = new Set(["salary", "basicSalary", "grossSalary", "petrolAmount", "employeePf", "employerPf", "employeeEsic", "employerEsic"]);
+const NUMBER_FIELDS = new Set([
+  "salary",
+  "basicSalary",
+  "grossSalary",
+  "petrolAmount",
+  "employeePf",
+  "employerPf",
+  "employeeEsic",
+  "employerEsic",
+  "salaryDeduction",
+]);
 
 exports.getProfile = async (req, res) => {
   const { employeeId } = req.params;

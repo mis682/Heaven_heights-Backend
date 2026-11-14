@@ -32,6 +32,12 @@ function statusTotals(days) {
   return { totalPresent, totalAbsent, totalHalfDay, totalSinglePunch, totalMonthlyLeave, totalHoliday, payableDays };
 }
 
+// Exposed for reuse by payrollController — avoids duplicating the
+// scan-to-status derivation logic for a feature that needs the same
+// per-day statuses, grouped by employee.
+exports.computeMonthSummary = computeMonthSummary;
+exports.statusTotals = statusTotals;
+
 // A night shift open with an "in" scan is treated as still open (its next
 // scan is the matching "out") as long as it's within this many hours —
 // covers shifts that punch in one evening and out the next morning, crossing
