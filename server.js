@@ -67,6 +67,7 @@ app.use("/api/maintenance-staff", lazyRoute(() => require("./routes/maintenanceS
 app.use("/api/site-locations", lazyRoute(() => require("./routes/siteLocations")));
 app.use("/api/attendance-scan", lazyRoute(() => require("./routes/attendanceScan")));
 app.use("/api/attendance-overtime", lazyRoute(() => require("./routes/attendanceOvertime")));
+app.use("/api/staff-profile", lazyRoute(() => require("./routes/staffProfile")));
 app.use("/api/fire-mock-drill", lazyRoute(() => require("./routes/fireMockDrill")));
 app.use("/api/fire-mock-drill-report", lazyRoute(() => require("./routes/fireMockDrillReport")));
 app.use("/api/gc-housekeeping", lazyRoute(() => require("./routes/gcHousekeeping")));

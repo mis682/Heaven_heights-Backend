@@ -1,0 +1,33 @@
+const mongoose = require("mongoose");
+
+// HR/financial detail fields for a staff member, kept separate from
+// MaintenanceStaff (which stays the single source for core identity fields
+// — name, employeeId, siteName, designation, companyName, photo — already
+// used across attendance/forms) so this sensitive data has its own
+// collection. One document per employeeId, filled in gradually by HR via
+// the Staff Profile page.
+const StaffProfileDetailSchema = new mongoose.Schema(
+  {
+    employeeId: { type: String, required: true, unique: true, trim: true },
+    dateOfBirth: { type: String, default: "" },
+    joiningDate: { type: String, default: "" },
+    aadharNumber: { type: String, default: "" },
+    panNumber: { type: String, default: "" },
+    uanNumber: { type: String, default: "" },
+    esicNumber: { type: String, default: "" },
+    bankName: { type: String, default: "" },
+    bankAccountNo: { type: String, default: "" },
+    bankIfscCode: { type: String, default: "" },
+    salary: { type: Number, default: 0 },
+    basicSalary: { type: Number, default: 0 },
+    grossSalary: { type: Number, default: 0 },
+    petrolAmount: { type: Number, default: 0 },
+    employeePf: { type: Number, default: 0 },
+    employerPf: { type: Number, default: 0 },
+    employeeEsic: { type: Number, default: 0 },
+    employerEsic: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("StaffProfileDetail", StaffProfileDetailSchema);
