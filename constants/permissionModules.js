@@ -2,6 +2,7 @@ const PERMISSION_MODULES = [
   { key: "attendance", label: "Attendance" },
   { key: "payroll", label: "Payroll" },
   { key: "patrol", label: "Security Patrol" },
+  { key: "maintenanceStaffInOut", label: "Maintenance Staff In/Out" },
   { key: "nightGuard", label: "Night Guard" },
   { key: "fireMockDrill", label: "Fire Mock Drill" },
   { key: "gcHousekeeping", label: "Garden City Housekeeping" },
