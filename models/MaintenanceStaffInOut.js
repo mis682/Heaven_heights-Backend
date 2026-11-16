@@ -9,7 +9,7 @@ const MaintenanceStaffInOutSchema = new mongoose.Schema(
     employeeId: { type: String, required: true, trim: true },
     employeeName: { type: String, required: true, trim: true },
     status: { type: String, enum: ["In", "Out"], required: true },
-    reason: { type: String, default: "", trim: true },
+    reason: { type: String, required: true, trim: true },
   },
   { timestamps: true }
 );
