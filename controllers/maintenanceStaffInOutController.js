@@ -17,13 +17,13 @@ exports.meta = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { employeeId, status } = req.body;
+  const { employeeId, status, reason } = req.body;
   if (!employeeId || !status) return res.status(400).json({ message: "employeeId and status are required" });
 
   const staff = await MaintenanceStaff.findOne({ employeeId });
   if (!staff) return res.status(404).json({ message: "Staff not found" });
 
-  const entry = await MaintenanceStaffInOut.create({ employeeId, employeeName: staff.name, status });
+  const entry = await MaintenanceStaffInOut.create({ employeeId, employeeName: staff.name, status, reason: reason || "" });
   res.status(201).json(entry);
 };
 
