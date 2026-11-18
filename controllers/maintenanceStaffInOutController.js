@@ -17,17 +17,39 @@ exports.meta = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { employeeId, status, reason } = req.body;
-  if (!employeeId || !status || !reason) return res.status(400).json({ message: "employeeId, status and reason are required" });
+  const { date, contractorName, employeeId, mobileNumber, work, inTime } = req.body;
+  if (!date || !contractorName || !employeeId || !mobileNumber || !work || !inTime) {
+    return res.status(400).json({ message: "date, contractorName, employeeId, mobileNumber, work and inTime are required" });
+  }
 
   const staff = await MaintenanceStaff.findOne({ employeeId });
   if (!staff) return res.status(404).json({ message: "Staff not found" });
 
-  const entry = await MaintenanceStaffInOut.create({ employeeId, employeeName: staff.name, status, reason });
+  const entry = await MaintenanceStaffInOut.create({
+    date,
+    contractorName,
+    employeeId,
+    employeeName: staff.name,
+    mobileNumber,
+    work,
+    inTime,
+  });
   res.status(201).json(entry);
 };
 
 exports.list = async (req, res) => {
   const entries = await MaintenanceStaffInOut.find({}).sort({ createdAt: -1 }).limit(1000);
   res.json(entries);
+};
+
+// Coordinator fills this in later, once the labour/staff actually leaves —
+// the only field editable after creation.
+exports.setOutTime = async (req, res) => {
+  const { id } = req.params;
+  const { outTime } = req.body;
+  if (outTime === undefined) return res.status(400).json({ message: "outTime is required" });
+
+  const entry = await MaintenanceStaffInOut.findByIdAndUpdate(id, { outTime }, { new: true });
+  if (!entry) return res.status(404).json({ message: "Entry not found" });
+  res.json(entry);
 };

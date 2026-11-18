@@ -1,15 +1,19 @@
 const mongoose = require("mongoose");
 
-// A simple gate-style in/out log for maintenance staff visiting the main
-// office — unlike daily Attendance (QR scan, geofenced, derives a day
-// status), this is just an ad-hoc timestamped record of one staff member
-// going in or out, picked from a dropdown by whoever's at the desk.
+// A gate-style register: one row per labour/staff visit, filled in at
+// check-in time (Date, Contractor/Supervisor, Labour/Staff, Mobile, Work,
+// In-Time) — Out-Time starts empty and is filled in later by the
+// coordinator once that person leaves, from the Submissions page.
 const MaintenanceStaffInOutSchema = new mongoose.Schema(
   {
+    date: { type: String, required: true },
+    contractorName: { type: String, required: true, trim: true },
     employeeId: { type: String, required: true, trim: true },
     employeeName: { type: String, required: true, trim: true },
-    status: { type: String, enum: ["In", "Out"], required: true },
-    reason: { type: String, required: true, trim: true },
+    mobileNumber: { type: String, required: true, trim: true },
+    work: { type: String, required: true, trim: true },
+    inTime: { type: String, required: true },
+    outTime: { type: String, default: "" },
   },
   { timestamps: true }
 );
