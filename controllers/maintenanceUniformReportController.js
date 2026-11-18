@@ -169,7 +169,7 @@ exports.kpi = async (req, res) => {
     extraFilter: reportName ? { reportName } : {},
     goodStatus: MAINTENANCE_UNIFORM_STATUS_OPTIONS[0],
     groupKey: (e) => String(e.staffId || e.staffName),
-    groupLabel: (e) => `${e.staffName} (${e.siteName})`,
+    groupLabel: (e) => `${e.staffName} (${e.siteName} - ${e.designation})`,
   });
   res.json({ rows });
 };
@@ -183,7 +183,7 @@ exports.kpiExportPdf = async (req, res) => {
     extraFilter: reportName ? { reportName } : {},
     goodStatus: MAINTENANCE_UNIFORM_STATUS_OPTIONS[0],
     groupKey: (e) => String(e.staffId || e.staffName),
-    groupLabel: (e) => `${e.staffName} (${e.siteName})`,
+    groupLabel: (e) => `${e.staffName} (${e.siteName} - ${e.designation})`,
   });
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename=maintenance-uniform-kpi-${from}-to-${to}.pdf`);
