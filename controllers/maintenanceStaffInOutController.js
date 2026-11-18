@@ -16,7 +16,7 @@ exports.list = async (req, res) => {
 };
 
 // Coordinator fills this in later, once the labour/staff actually leaves —
-// the only field editable after creation.
+// the only field editable after creation via the quick inline picker.
 exports.setOutTime = async (req, res) => {
   const { id } = req.params;
   const { outTime } = req.body;
@@ -25,4 +25,24 @@ exports.setOutTime = async (req, res) => {
   const entry = await MaintenanceStaffInOut.findByIdAndUpdate(id, { outTime }, { new: true });
   if (!entry) return res.status(404).json({ message: "Entry not found" });
   res.json(entry);
+};
+
+const EDITABLE_FIELDS = ["date", "contractorName", "staffName", "mobileNumber", "work", "inTime", "outTime"];
+
+exports.update = async (req, res) => {
+  const { id } = req.params;
+  const update = {};
+  EDITABLE_FIELDS.forEach((f) => {
+    if (req.body[f] !== undefined) update[f] = req.body[f];
+  });
+
+  const entry = await MaintenanceStaffInOut.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+  if (!entry) return res.status(404).json({ message: "Entry not found" });
+  res.json(entry);
+};
+
+exports.remove = async (req, res) => {
+  const entry = await MaintenanceStaffInOut.findByIdAndDelete(req.params.id);
+  if (!entry) return res.status(404).json({ message: "Entry not found" });
+  res.json({ message: "Deleted" });
 };
