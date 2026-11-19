@@ -16,6 +16,17 @@ const StaffProfileDetailSchema = new mongoose.Schema(
     maritalStatus: { type: String, default: "" },
     emergencyContactName: { type: String, default: "" },
     emergencyContactPhone: { type: String, default: "" },
+    currentPinCode: { type: String, default: "" },
+    currentAddressLine: { type: String, default: "" },
+    currentCity: { type: String, default: "" },
+    currentState: { type: String, default: "" },
+    // When true, Permanent Address mirrors Current Address in the UI
+    // instead of being entered separately.
+    permanentSameAsCurrent: { type: Boolean, default: true },
+    permanentPinCode: { type: String, default: "" },
+    permanentAddressLine: { type: String, default: "" },
+    permanentCity: { type: String, default: "" },
+    permanentState: { type: String, default: "" },
     aadharNumber: { type: String, default: "" },
     panNumber: { type: String, default: "" },
     uanNumber: { type: String, default: "" },

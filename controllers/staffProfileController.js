@@ -13,6 +13,15 @@ const DETAIL_FIELDS = [
   "maritalStatus",
   "emergencyContactName",
   "emergencyContactPhone",
+  "currentPinCode",
+  "currentAddressLine",
+  "currentCity",
+  "currentState",
+  "permanentSameAsCurrent",
+  "permanentPinCode",
+  "permanentAddressLine",
+  "permanentCity",
+  "permanentState",
   "aadharNumber",
   "panNumber",
   "uanNumber",
@@ -43,6 +52,7 @@ const NUMBER_FIELDS = new Set([
   "employerEsic",
   "salaryDeduction",
 ]);
+const BOOLEAN_FIELDS = new Set(["permanentSameAsCurrent"]);
 
 exports.getProfile = async (req, res) => {
   const { employeeId } = req.params;
@@ -59,7 +69,13 @@ exports.getProfile = async (req, res) => {
     photo: staff.photo || "",
   };
   DETAIL_FIELDS.forEach((f) => {
-    profile[f] = detail ? detail[f] : NUMBER_FIELDS.has(f) ? 0 : "";
+    if (detail) {
+      profile[f] = detail[f];
+    } else if (BOOLEAN_FIELDS.has(f)) {
+      profile[f] = true;
+    } else {
+      profile[f] = NUMBER_FIELDS.has(f) ? 0 : "";
+    }
   });
   res.json(profile);
 };
@@ -72,7 +88,9 @@ exports.updateProfile = async (req, res) => {
   const update = {};
   DETAIL_FIELDS.forEach((f) => {
     if (req.body[f] === undefined) return;
-    update[f] = NUMBER_FIELDS.has(f) ? Number(req.body[f]) || 0 : req.body[f];
+    if (NUMBER_FIELDS.has(f)) update[f] = Number(req.body[f]) || 0;
+    else if (BOOLEAN_FIELDS.has(f)) update[f] = Boolean(req.body[f]);
+    else update[f] = req.body[f];
   });
 
   await StaffProfileDetail.findOneAndUpdate({ employeeId }, update, {
@@ -81,4 +99,22 @@ exports.updateProfile = async (req, res) => {
     setDefaultsOnInsert: true,
   });
   await exports.getProfile(req, res);
+};
+
+// Looks up city/state for a 6-digit Indian PIN code via the public India
+// Post API — proxied through our own backend (not called directly from
+// the browser) to sidestep any CORS restrictions on that API.
+exports.lookupPincode = async (req, res) => {
+  const { code } = req.params;
+  if (!/^\d{6}$/.test(code)) return res.status(400).json({ message: "A 6-digit PIN code is required" });
+
+  try {
+    const response = await fetch(`https://api.postalpincode.in/pincode/${code}`);
+    const data = await response.json();
+    const postOffice = data?.[0]?.PostOffice?.[0];
+    if (!postOffice) return res.status(404).json({ message: "PIN code not found" });
+    res.json({ city: postOffice.District, state: postOffice.State });
+  } catch {
+    res.status(502).json({ message: "PIN code lookup failed" });
+  }
 };
