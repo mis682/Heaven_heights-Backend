@@ -11,22 +11,27 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+// Companies only (not blank) — a staff member with no companyName set
+// yet (HR fills this in gradually) simply won't appear under any company
+// row here until it's assigned.
 exports.meta = async (req, res) => {
-  const designations = await MaintenanceStaff.distinct("designation");
-  res.json({ designations: designations.sort() });
+  const companies = await MaintenanceStaff.distinct("companyName");
+  res.json({ companies: companies.filter(Boolean).sort() });
 };
 
-// Builds one payroll row per staff member in the given designation for the
+// Builds one payroll row per staff member in the given company for the
 // given month — joins Staff Profile (salary inputs), Team Attendance
 // (present/half-day/monthly-leave counts, same derivation as the Team
 // Attendance page) and Overtime (monthly day count), then runs the same
 // math as computePayrollRow. Grouped by site, each group carries its own
 // subtotal — matching the existing manual sheet's layout — plus one grand
-// total for the whole designation.
-async function buildDesignationPayroll(designation, month, year) {
+// total for the whole company. Each row also carries its own designation
+// since one company can span multiple designations (Guard, Housekeeping,
+// etc.), unlike the old designation-grouped layout where it was implicit.
+async function buildCompanyPayroll(companyName, month, year) {
   const daysInMonth = daysInCalendarMonth(month, year);
-  const staffList = await MaintenanceStaff.find({ designation }).sort({ siteName: 1, employeeId: 1 });
-  if (staffList.length === 0) return { designation, month: Number(month), year: Number(year), daysInMonth, siteGroups: [], grandTotal: null };
+  const staffList = await MaintenanceStaff.find({ companyName }).sort({ siteName: 1, employeeId: 1 });
+  if (staffList.length === 0) return { company: companyName, month: Number(month), year: Number(year), daysInMonth, siteGroups: [], grandTotal: null };
 
   const [summary, details, overtimeEntries] = await Promise.all([
     computeMonthSummary({ month, year }),
@@ -57,6 +62,7 @@ async function buildDesignationPayroll(designation, month, year) {
       siteName: staff.siteName,
       employeeName: staff.name,
       employeeId: staff.employeeId,
+      designation: staff.designation,
       bankAccountNo: detail?.bankAccountNo || "",
       bankName: detail?.bankName || "",
       bankIfscCode: detail?.bankIfscCode || "",
@@ -93,30 +99,31 @@ async function buildDesignationPayroll(designation, month, year) {
   const grandTotal = emptySum();
   rows.forEach((r) => addInto(grandTotal, r));
 
-  return { designation, month: Number(month), year: Number(year), daysInMonth, siteGroups, grandTotal };
+  return { company: companyName, month: Number(month), year: Number(year), daysInMonth, siteGroups, grandTotal };
 }
 
-exports.getDesignationPayroll = async (req, res) => {
-  const { designation } = req.params;
+exports.getCompanyPayroll = async (req, res) => {
+  const { company } = req.params;
   const { month, year } = req.query;
   if (!month || !year) return res.status(400).json({ message: "month and year are required" });
-  const payroll = await buildDesignationPayroll(designation, month, year);
+  const payroll = await buildCompanyPayroll(company, month, year);
   res.json(payroll);
 };
 
 exports.exportExcel = async (req, res) => {
-  const { designation } = req.params;
+  const { company } = req.params;
   const { month, year } = req.query;
   if (!month || !year) return res.status(400).json({ message: "month and year are required" });
-  const payroll = await buildDesignationPayroll(designation, month, year);
+  const payroll = await buildCompanyPayroll(company, month, year);
 
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(designation.slice(0, 31));
+  const sheet = workbook.addWorksheet(company.slice(0, 31));
   sheet.columns = [
     { header: "S No", key: "sNo", width: 6 },
     { header: "Site Name", key: "siteName", width: 16 },
     { header: "Employee Name", key: "employeeName", width: 22 },
     { header: "E.ID", key: "employeeId", width: 10 },
+    { header: "Designation", key: "designation", width: 16 },
     { header: "Bank Account Number", key: "bankAccountNo", width: 20 },
     { header: "Bank Name", key: "bankName", width: 14 },
     { header: "Bank IFSC Code", key: "bankIfscCode", width: 14 },
@@ -151,30 +158,30 @@ exports.exportExcel = async (req, res) => {
     subtotalRow.font = { bold: true };
   });
   if (payroll.grandTotal) {
-    const totalRow = sheet.addRow({ employeeName: `Total Amount of ${designation} Salary`, ...payroll.grandTotal });
+    const totalRow = sheet.addRow({ employeeName: `Total Amount of ${company} Salary`, ...payroll.grandTotal });
     totalRow.font = { bold: true };
   }
 
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename=payroll-${designation.toLowerCase().replace(/\s+/g, "-")}-${MONTH_NAMES[month - 1]}-${year}.xlsx`
+    `attachment; filename=payroll-${company.toLowerCase().replace(/\s+/g, "-")}-${MONTH_NAMES[month - 1]}-${year}.xlsx`
   );
   await workbook.xlsx.write(res);
   res.end();
 };
 
 exports.exportPdf = async (req, res) => {
-  const { designation } = req.params;
+  const { company } = req.params;
   const { month, year, download } = req.query;
   if (!month || !year) return res.status(400).json({ message: "month and year are required" });
-  const payroll = await buildDesignationPayroll(designation, month, year);
+  const payroll = await buildCompanyPayroll(company, month, year);
 
   res.setHeader("Content-Type", "application/pdf");
-  const filename = `payroll-${designation.toLowerCase().replace(/\s+/g, "-")}-${MONTH_NAMES[month - 1]}-${year}.pdf`;
+  const filename = `payroll-${company.toLowerCase().replace(/\s+/g, "-")}-${MONTH_NAMES[month - 1]}-${year}.pdf`;
   res.setHeader("Content-Disposition", `${download ? "attachment" : "inline"}; filename=${filename}`);
 
-  const doc = buildPayrollPdf(payroll, `${designation} — ${MONTH_NAMES[month - 1]} ${year}`);
+  const doc = buildPayrollPdf(payroll, `${company} — ${MONTH_NAMES[month - 1]} ${year}`);
   doc.pipe(res);
   doc.end();
 };

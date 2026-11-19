@@ -4,8 +4,8 @@ const ctrl = require("../controllers/payrollController");
 const asyncHandler = require("../utils/asyncHandler");
 
 router.get("/meta", asyncHandler(ctrl.meta));
-router.get("/:designation/excel", asyncHandler(ctrl.exportExcel));
-router.get("/:designation/pdf", asyncHandler(ctrl.exportPdf));
-router.get("/:designation", asyncHandler(ctrl.getDesignationPayroll));
+router.get("/:company/excel", asyncHandler(ctrl.exportExcel));
+router.get("/:company/pdf", asyncHandler(ctrl.exportPdf));
+router.get("/:company", asyncHandler(ctrl.getCompanyPayroll));
 
 module.exports = router;

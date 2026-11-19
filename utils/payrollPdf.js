@@ -20,6 +20,7 @@ const COLUMNS = [
   { key: "siteName", label: "Site Name", width: 55 },
   { key: "employeeName", label: "Employee Name", width: 80 },
   { key: "employeeId", label: "E.ID", width: 32 },
+  { key: "designation", label: "Designation", width: 55 },
   { key: "bankAccountNo", label: "Bank A/C No.", width: 65 },
   { key: "bankName", label: "Bank", width: 38 },
   { key: "bankIfscCode", label: "IFSC", width: 45 },
@@ -105,7 +106,7 @@ function buildPayrollPdf(payroll, title) {
 
   if (payroll.grandTotal) {
     ensureSpace();
-    drawRow(doc, MARGIN, y, { employeeName: `Total Amount of ${payroll.designation} Salary`, ...payroll.grandTotal }, { bold: true });
+    drawRow(doc, MARGIN, y, { employeeName: `Total Amount of ${payroll.company} Salary`, ...payroll.grandTotal }, { bold: true });
     y += ROW_HEIGHT;
   }
 
