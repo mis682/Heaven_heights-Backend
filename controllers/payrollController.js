@@ -125,7 +125,6 @@ exports.exportExcel = async (req, res) => {
     { header: "E.ID", key: "employeeId", width: 10 },
     { header: "Designation", key: "designation", width: 16 },
     { header: "Bank Account Number", key: "bankAccountNo", width: 20 },
-    { header: "Bank Name", key: "bankName", width: 14 },
     { header: "Bank IFSC Code", key: "bankIfscCode", width: 14 },
     { header: "Salary", key: "salary", width: 10 },
     { header: "Petrol", key: "petrol", width: 9 },
@@ -148,7 +147,6 @@ exports.exportExcel = async (req, res) => {
     { header: "UAN Number", key: "uanNumber", width: 14 },
     { header: "ESIC Number", key: "esicNumber", width: 14 },
     { header: "Aadhar Number", key: "aadharNumber", width: 14 },
-    { header: "PAN Number", key: "panNumber", width: 12 },
   ];
   sheet.getRow(1).font = { bold: true };
 

@@ -22,7 +22,6 @@ const COLUMNS = [
   { key: "employeeId", label: "E.ID", width: 32 },
   { key: "designation", label: "Designation", width: 55 },
   { key: "bankAccountNo", label: "Bank A/C No.", width: 65 },
-  { key: "bankName", label: "Bank", width: 38 },
   { key: "bankIfscCode", label: "IFSC", width: 45 },
   { key: "salary", label: "Salary", width: 38 },
   { key: "petrol", label: "Petrol", width: 32 },
@@ -45,7 +44,6 @@ const COLUMNS = [
   { key: "uanNumber", label: "UAN", width: 55 },
   { key: "esicNumber", label: "ESIC No.", width: 50 },
   { key: "aadharNumber", label: "Aadhar", width: 55 },
-  { key: "panNumber", label: "PAN", width: 42 },
 ];
 
 function drawHeaderRow(doc, x, y) {
