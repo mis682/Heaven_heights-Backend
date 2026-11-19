@@ -8,6 +8,11 @@ const StaffProfileDetail = require("../models/StaffProfileDetail");
 const DETAIL_FIELDS = [
   "dateOfBirth",
   "joiningDate",
+  "contactNumber",
+  "bloodGroup",
+  "maritalStatus",
+  "emergencyContactName",
+  "emergencyContactPhone",
   "aadharNumber",
   "panNumber",
   "uanNumber",
