@@ -42,7 +42,7 @@ async function buildCompanyPayroll(companyName, month, year) {
   const detailByEmployee = new Map(details.map((d) => [d.employeeId, d]));
   const overtimeByEmployee = new Map(overtimeEntries.map((o) => [o.employeeId, o.days]));
 
-  const rows = staffList.map((staff, idx) => {
+  const rows = staffList.map((staff) => {
     const detail = detailByEmployee.get(staff.employeeId);
     const summaryRow = summaryByEmployee.get(staff.employeeId);
     const totals = summaryRow
@@ -66,7 +66,6 @@ async function buildCompanyPayroll(companyName, month, year) {
     const calc = computePayrollRow({ salary, petrol, basic, salaryDeduction, payableDays: totals.payableDays, overTime, daysInMonth });
 
     return {
-      sNo: idx + 1,
       siteName: staff.siteName,
       employeeName: staff.name,
       employeeId: staff.employeeId,
@@ -99,6 +98,7 @@ async function buildCompanyPayroll(companyName, month, year) {
   const addInto = (sum, r) => sumFields.forEach((f) => { sum[f] += r[f]; });
 
   const siteGroups = [...bySite.entries()].map(([siteName, siteRows]) => {
+    siteRows.forEach((r, i) => { r.sNo = i + 1; });
     const subtotal = emptySum();
     siteRows.forEach((r) => addInto(subtotal, r));
     return { siteName, rows: siteRows, subtotal };
