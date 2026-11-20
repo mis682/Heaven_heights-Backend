@@ -3,10 +3,11 @@ const MaintenanceStaff = require("../models/MaintenanceStaff");
 const SiteLocation = require("../models/SiteLocation");
 const AttendanceScan = require("../models/AttendanceScan");
 const AttendanceOverride = require("../models/AttendanceOverride");
+const StaffProfileDetail = require("../models/StaffProfileDetail");
 const { fileToUrl } = require("../middleware/upload");
 const { haversineMeters } = require("../utils/geo");
 const { buildTeamAttendancePdf } = require("../utils/teamAttendancePdf");
-const { istDateKey, istHour, istDayStart } = require("../utils/istDateRange");
+const { istDateKey, istHour, istDayStart, istMinutesOfDay } = require("../utils/istDateRange");
 const { notifyWebhook } = require("../utils/webhook");
 
 const MONTH_NAMES = [
@@ -27,9 +28,60 @@ function statusTotals(days) {
   const totalSinglePunch = days.filter((d) => d.status === "SP").length;
   const totalMonthlyLeave = days.filter((d) => d.status === "ML").length;
   const totalHoliday = days.filter((d) => d.status === "H").length;
+  const totalLate = days.filter((d) => d.status === "L").length;
+  const totalEarlyCheckout = days.filter((d) => d.status === "EC").length;
+  // Within-allowance Late/Early Checkout days still count as a full payable
+  // day, same as Present — any day past the 3-per-month allowance has
+  // already been converted to Half Day upstream (see
+  // resolveLateEarlyAllowance in computeMonthSummary) before this runs.
   // Half Day counts as half a payable day (e.g. 3 Half Days -> 1.5 days).
-  const payableDays = totalPresent + totalMonthlyLeave + totalHoliday + totalHalfDay * 0.5;
-  return { totalPresent, totalAbsent, totalHalfDay, totalSinglePunch, totalMonthlyLeave, totalHoliday, payableDays };
+  const payableDays = totalPresent + totalLate + totalEarlyCheckout + totalMonthlyLeave + totalHoliday + totalHalfDay * 0.5;
+  return {
+    totalPresent, totalAbsent, totalHalfDay, totalSinglePunch, totalMonthlyLeave, totalHoliday,
+    totalLate, totalEarlyCheckout, payableDays,
+  };
+}
+
+// Allowance before a Late (or, separately, an Early Checkout) stops being
+// "just Late"/"just Early Checkout" and becomes a Half Day instead — same
+// 3-per-month grace for both, tracked independently of each other.
+const LATE_EARLY_ALLOWANCE = 3;
+
+// "hh:mm AM/PM" (Time12hInput's format, e.g. "09:05 AM") -> minutes since
+// midnight, for comparing a staff's scheduled punch time against an actual
+// scan's IST time-of-day. Returns null for an unset/unparseable schedule.
+function parseScheduledTime(value) {
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(value || "");
+  if (!m) return null;
+  let hour = Number(m[1]) % 12;
+  if (m[3].toUpperCase() === "PM") hour += 12;
+  return hour * 60 + Number(m[2]);
+}
+
+// Walks a staff's days in order, converting any "P" day flagged
+// tentatively Late/Early-Checkout into its final status — "L"/"EC" while
+// within the allowance, "HD" once a type's count for the month goes over
+// it. Going over EITHER allowance wins (forces HD) even if the other
+// applies the same day and is still within its own allowance.
+function resolveLateEarlyAllowance(days) {
+  let lateCount = 0;
+  let earlyCount = 0;
+  days.forEach((day) => {
+    if (day.overridden || day.status !== "P") return;
+    let finalStatus = "P";
+    if (day.tentativeLate) {
+      lateCount += 1;
+      finalStatus = lateCount <= LATE_EARLY_ALLOWANCE ? "L" : "HD";
+    }
+    if (day.tentativeEarlyCheckout) {
+      earlyCount += 1;
+      if (earlyCount > LATE_EARLY_ALLOWANCE) finalStatus = "HD";
+      else if (finalStatus === "P") finalStatus = "EC";
+    }
+    if (finalStatus !== "P") day.status = finalStatus;
+    delete day.tentativeLate;
+    delete day.tentativeEarlyCheckout;
+  });
 }
 
 // Exposed for reuse by payrollController — avoids duplicating the
@@ -287,6 +339,15 @@ async function computeMonthSummary({ month, year, search }) {
   }
   const staffList = await MaintenanceStaff.find(staffFilter).sort({ employeeId: 1 });
 
+  // Scheduled Punch In/Out Time, set per-staff on the Staff Profile page —
+  // absent for most staff until HR fills it in, in which case Late/Early
+  // Checkout detection simply never triggers for them (status stays as
+  // plain P/A/HD/SP, same as before this feature existed).
+  const scheduleDetails = await StaffProfileDetail.find({ employeeId: { $in: staffList.map((s) => s.employeeId) } }).select(
+    "employeeId scheduledPunchInTime scheduledPunchOutTime"
+  );
+  const scheduleByEmployee = new Map(scheduleDetails.map((d) => [d.employeeId, d]));
+
   // Widen the raw query by a day on each side so a night shift that punches
   // in on the last evening of one month and out early the next month (or
   // vice versa) is still fetched — it's then bucketed by shiftDate below,
@@ -316,6 +377,10 @@ async function computeMonthSummary({ month, year, search }) {
   const lastRelevantDay = isCurrentMonth ? today.getDate() : daysInMonth;
 
   const rows = staffList.map((staff) => {
+    const schedule = scheduleByEmployee.get(staff.employeeId);
+    const scheduledInMinutes = schedule ? parseScheduledTime(schedule.scheduledPunchInTime) : null;
+    const scheduledOutMinutes = schedule ? parseScheduledTime(schedule.scheduledPunchOutTime) : null;
+
     const days = [];
     for (let day = 1; day <= daysInMonth; day++) {
       if (day > lastRelevantDay) {
@@ -338,6 +403,18 @@ async function computeMonthSummary({ month, year, search }) {
         else if (hours <= 6) status = "HD";
         else status = "P";
         dayResult = { day, status, punchIn, punchOut, totalHours: Math.round(hours * 100) / 100 };
+        // Only a day that would otherwise be a clean Present gets flagged —
+        // resolveLateEarlyAllowance (below, after this loop) turns these
+        // tentative flags into a final L/EC/HD status, walking the month in
+        // order so the 3-per-month allowance is counted correctly.
+        if (status === "P") {
+          if (scheduledInMinutes !== null && istMinutesOfDay(punchIn) > scheduledInMinutes) {
+            dayResult.tentativeLate = true;
+          }
+          if (scheduledOutMinutes !== null && istMinutesOfDay(punchOut) < scheduledOutMinutes) {
+            dayResult.tentativeEarlyCheckout = true;
+          }
+        }
       }
       const dateKey = `${monthPrefix}-${String(day).padStart(2, "0")}`;
       const override = overrideByStaffDay.get(`${staff.employeeId}__${dateKey}`);
@@ -346,6 +423,7 @@ async function computeMonthSummary({ month, year, search }) {
       }
       days.push(dayResult);
     }
+    resolveLateEarlyAllowance(days);
     return {
       employeeId: staff.employeeId,
       name: staff.name,
@@ -398,7 +476,16 @@ exports.clearAttendanceOverride = async (req, res) => {
 exports.exportTeamAttendanceExcel = async (req, res) => {
   const { daysInMonth, rows, month, year } = await computeMonthSummary(req.query);
 
-  const FILL = { P: "FF22C55E", A: "FFEF4444", HD: "FF3B82F6", SP: "FFF59E0B", ML: "FF14B8A6", H: "FFA855F7" };
+  const FILL = {
+    P: "FF22C55E",
+    A: "FFEF4444",
+    HD: "FF3B82F6",
+    SP: "FFF59E0B",
+    ML: "FF14B8A6",
+    H: "FFA855F7",
+    L: "FFEAB308",
+    EC: "FFF97316",
+  };
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(`Attendance ${MONTH_NAMES[month - 1]} ${year}`);
@@ -417,6 +504,8 @@ exports.exportTeamAttendanceExcel = async (req, res) => {
     { header: "Total Single Punch", key: "totalSinglePunch", width: 15 },
     { header: "Holiday", key: "totalHoliday", width: 10 },
     { header: "Monthly Leave", key: "totalMonthlyLeave", width: 14 },
+    { header: "Total Late", key: "totalLate", width: 11 },
+    { header: "Total Early Checkout", key: "totalEarlyCheckout", width: 16 },
   ];
   const fixedColumnCount = columns.length;
   for (let d = 1; d <= daysInMonth; d += 1) columns.push({ header: String(d), key: `day${d}`, width: 5 });

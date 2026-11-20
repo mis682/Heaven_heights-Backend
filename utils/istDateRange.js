@@ -40,4 +40,11 @@ function istHour(date) {
   return new Date(new Date(date).getTime() + IST_OFFSET_MS).getUTCHours();
 }
 
-module.exports = { istDayStart, buildIstDateRangeFilter, istDateKey, istHour };
+// IST wall-clock minutes-since-midnight (0-1439) for a timestamp — used to
+// compare an actual scan time against a staff's scheduled punch time.
+function istMinutesOfDay(date) {
+  const shifted = new Date(new Date(date).getTime() + IST_OFFSET_MS);
+  return shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+}
+
+module.exports = { istDayStart, buildIstDateRangeFilter, istDateKey, istHour, istMinutesOfDay };

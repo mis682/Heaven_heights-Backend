@@ -45,8 +45,14 @@ async function buildCompanyPayroll(companyName, month, year) {
   const rows = staffList.map((staff, idx) => {
     const detail = detailByEmployee.get(staff.employeeId);
     const summaryRow = summaryByEmployee.get(staff.employeeId);
-    const totals = summaryRow ? statusTotals(summaryRow.days) : { totalPresent: 0, totalHalfDay: 0, totalMonthlyLeave: 0 };
-    const presentDays = totals.totalPresent + totals.totalHalfDay * 0.5;
+    const totals = summaryRow
+      ? statusTotals(summaryRow.days)
+      : { totalPresent: 0, totalHalfDay: 0, totalMonthlyLeave: 0, totalLate: 0, totalEarlyCheckout: 0 };
+    // Within-allowance Late/Early Checkout days are full payable days (see
+    // resolveLateEarlyAllowance in attendanceScanController) so they count
+    // the same as Present here too — only days converted to Half Day are
+    // discounted.
+    const presentDays = totals.totalPresent + totals.totalLate + totals.totalEarlyCheckout + totals.totalHalfDay * 0.5;
     const leaveAllowed = totals.totalMonthlyLeave;
     const overTime = overtimeByEmployee.get(staff.employeeId) || 0;
 

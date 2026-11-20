@@ -1,6 +1,6 @@
 const PDFDocument = require("pdfkit");
 
-const STATUS_COLORS = { P: "#22c55e", A: "#ef4444", HD: "#3b82f6", SP: "#f59e0b" };
+const STATUS_COLORS = { P: "#22c55e", A: "#ef4444", HD: "#3b82f6", SP: "#f59e0b", L: "#eab308", EC: "#f97316" };
 const HEADER_FILL = "#374151";
 const BORDER_COLOR = "#d1d5db";
 const MARGIN = 20;
@@ -20,6 +20,8 @@ function buildColumns(daysInMonth) {
     { label: "Tot. A", width: 30, key: "totalAbsent" },
     { label: "Tot. HD", width: 32, key: "totalHalfDay" },
     { label: "Tot. SP", width: 32, key: "totalSinglePunch" },
+    { label: "Tot. L", width: 30, key: "totalLate" },
+    { label: "Tot. EC", width: 32, key: "totalEarlyCheckout" },
   ];
   const dayCols = Array.from({ length: daysInMonth }, (_, i) => ({ label: String(i + 1), width: 17, key: `day${i + 1}` }));
   return [...fixed, ...dayCols];
@@ -50,6 +52,8 @@ function drawDataRow(doc, columns, row, x, y) {
     else if (col.key === "totalAbsent") text = String(row.totalAbsent);
     else if (col.key === "totalHalfDay") text = String(row.totalHalfDay);
     else if (col.key === "totalSinglePunch") text = String(row.totalSinglePunch);
+    else if (col.key === "totalLate") text = String(row.totalLate);
+    else if (col.key === "totalEarlyCheckout") text = String(row.totalEarlyCheckout);
     else {
       const dayNum = Number(col.key.replace("day", ""));
       const d = row.days.find((x) => x.day === dayNum);
