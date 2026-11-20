@@ -13,6 +13,8 @@ const DETAIL_FIELDS = [
   "maritalStatus",
   "emergencyContactName",
   "emergencyContactPhone",
+  "scheduledPunchInTime",
+  "scheduledPunchOutTime",
   "currentPinCode",
   "currentAddressLine",
   "currentCity",

@@ -16,6 +16,11 @@ const StaffProfileDetailSchema = new mongoose.Schema(
     maritalStatus: { type: String, default: "" },
     emergencyContactName: { type: String, default: "" },
     emergencyContactPhone: { type: String, default: "" },
+    // Scheduled shift times, "hh:mm AM/PM" strings — used (once Late/Early
+    // Checkout tracking is built) to compare against actual scan times.
+    // Shift Duration is derived from these two, not stored.
+    scheduledPunchInTime: { type: String, default: "" },
+    scheduledPunchOutTime: { type: String, default: "" },
     currentPinCode: { type: String, default: "" },
     currentAddressLine: { type: String, default: "" },
     currentCity: { type: String, default: "" },
