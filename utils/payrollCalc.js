@@ -13,12 +13,12 @@ function daysInCalendarMonth(month, year) {
   return new Date(Number(year), Number(month), 0).getDate();
 }
 
-// `presentDays` should already fold in Half Day as 0.5 (same convention as
-// Team Attendance's Payable Days) — Monthly Leave is passed separately as
-// `leaveAllowed` since it has its own column in the sheet, and `overTime`
-// comes from the Overtime submodule's monthly day count.
-function computePayrollRow({ salary, petrol, basic, salaryDeduction, presentDays, leaveAllowed, overTime, daysInMonth }) {
-  const totalDays = Math.round((presentDays + leaveAllowed + overTime) * 100) / 100;
+// `payableDays` is Team Attendance's own Payable Days figure (Present +
+// Late + Early Checkout + Monthly Leave + Holiday + Half Day x 0.5) —
+// Total Days here is just that plus `overTime`, which comes from the
+// Overtime submodule's monthly day count.
+function computePayrollRow({ salary, petrol, basic, salaryDeduction, payableDays, overTime, daysInMonth }) {
+  const totalDays = Math.round((payableDays + overTime) * 100) / 100;
   // Rate and Gross are the same flat, full-month figures as Staff Profile's
   // Salary & Statutory Details (computeSalaryBreakdown on the frontend) —
   // not prorated by attendance. totalDays is still shown as its own column.

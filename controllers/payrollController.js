@@ -47,11 +47,13 @@ async function buildCompanyPayroll(companyName, month, year) {
     const summaryRow = summaryByEmployee.get(staff.employeeId);
     const totals = summaryRow
       ? statusTotals(summaryRow.days)
-      : { totalPresent: 0, totalHalfDay: 0, totalMonthlyLeave: 0, totalLate: 0, totalEarlyCheckout: 0 };
+      : { totalPresent: 0, totalHalfDay: 0, totalMonthlyLeave: 0, totalLate: 0, totalEarlyCheckout: 0, payableDays: 0 };
     // Within-allowance Late/Early Checkout days are full payable days (see
     // resolveLateEarlyAllowance in attendanceScanController) so they count
     // the same as Present here too — only days converted to Half Day are
-    // discounted.
+    // discounted. Kept as its own "Present Days" column; Total Days (in
+    // calc below) uses totals.payableDays instead, which additionally
+    // folds in Monthly Leave and Holiday.
     const presentDays = totals.totalPresent + totals.totalLate + totals.totalEarlyCheckout + totals.totalHalfDay * 0.5;
     const leaveAllowed = totals.totalMonthlyLeave;
     const overTime = overtimeByEmployee.get(staff.employeeId) || 0;
@@ -61,7 +63,7 @@ async function buildCompanyPayroll(companyName, month, year) {
     const basic = detail?.basicSalary || 0;
     const salaryDeduction = detail?.salaryDeduction || 0;
 
-    const calc = computePayrollRow({ salary, petrol, basic, salaryDeduction, presentDays, leaveAllowed, overTime, daysInMonth });
+    const calc = computePayrollRow({ salary, petrol, basic, salaryDeduction, payableDays: totals.payableDays, overTime, daysInMonth });
 
     return {
       sNo: idx + 1,
