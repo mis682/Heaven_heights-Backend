@@ -41,18 +41,17 @@ const StaffProfileDetailSchema = new mongoose.Schema(
     branchName: { type: String, default: "" },
     bankAccountNo: { type: String, default: "" },
     bankIfscCode: { type: String, default: "" },
+    // Gross Salary, HRA, Employee/Employer PF & ESIC, Salary Payable, Total
+    // CTC and Rate are all derived from these four inputs (plus days in
+    // month) rather than stored — see computeSalaryBreakdown on the Staff
+    // Profile page and computePayrollRow for Payroll.
     salary: { type: Number, default: 0 },
     basicSalary: { type: Number, default: 0 },
-    grossSalary: { type: Number, default: 0 },
     petrolAmount: { type: Number, default: 0 },
     // Set by HR whenever a one-off amount (e.g. an advance recovery) needs
     // to come out of this month's payroll — not tied to a specific month,
     // HR resets it to 0 once recovered.
     salaryDeduction: { type: Number, default: 0 },
-    employeePf: { type: Number, default: 0 },
-    employerPf: { type: Number, default: 0 },
-    employeeEsic: { type: Number, default: 0 },
-    employerEsic: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

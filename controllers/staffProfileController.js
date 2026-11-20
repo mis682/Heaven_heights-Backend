@@ -35,25 +35,10 @@ const DETAIL_FIELDS = [
   "bankIfscCode",
   "salary",
   "basicSalary",
-  "grossSalary",
   "petrolAmount",
-  "employeePf",
-  "employerPf",
-  "employeeEsic",
-  "employerEsic",
   "salaryDeduction",
 ];
-const NUMBER_FIELDS = new Set([
-  "salary",
-  "basicSalary",
-  "grossSalary",
-  "petrolAmount",
-  "employeePf",
-  "employerPf",
-  "employeeEsic",
-  "employerEsic",
-  "salaryDeduction",
-]);
+const NUMBER_FIELDS = new Set(["salary", "basicSalary", "petrolAmount", "salaryDeduction"]);
 const BOOLEAN_FIELDS = new Set(["permanentSameAsCurrent"]);
 
 exports.getProfile = async (req, res) => {
