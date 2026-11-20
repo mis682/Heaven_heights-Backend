@@ -140,7 +140,7 @@ exports.exportExcel = async (req, res) => {
     { header: "Present Days", key: "presentDays", width: 11 },
     { header: "Leave Allowed", key: "leaveAllowed", width: 11 },
     { header: "Over Time", key: "overTime", width: 9 },
-    { header: "Total Days", key: "totalDays", width: 10 },
+    { header: "Total Payable Days", key: "totalDays", width: 15 },
     { header: "Rate", key: "rate", width: 8 },
     { header: "Gross", key: "gross", width: 10 },
     { header: "HRA", key: "hra", width: 9 },
