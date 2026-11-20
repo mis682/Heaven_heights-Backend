@@ -25,7 +25,7 @@ const COLUMNS = [
   { key: "bankIfscCode", label: "IFSC", width: 45 },
   { key: "salary", label: "Salary", width: 38 },
   { key: "petrol", label: "Petrol", width: 32 },
-  { key: "daysInMonth", label: "Days", width: 24 },
+  { key: "daysInMonth", label: "Days in Month", width: 50 },
   { key: "presentDays", label: "Present", width: 32 },
   { key: "leaveAllowed", label: "Leave", width: 28 },
   { key: "overTime", label: "OT", width: 24 },
