@@ -3,11 +3,19 @@ const router = express.Router();
 const ctrl = require("../controllers/vehicleController");
 const asyncHandler = require("../utils/asyncHandler");
 const { requireAuth, requirePermission } = require("../middleware/auth");
+const { upload } = require("../middleware/upload");
 
 // Meta and submission stay public — this is the Daily Basis Ride Form
 // drivers/guards fill in themselves, no login.
 router.get("/meta", asyncHandler(ctrl.meta));
-router.post("/", asyncHandler(ctrl.createSubmission));
+router.post(
+  "/",
+  upload.fields([
+    { name: "startReadingPhoto", maxCount: 1 },
+    { name: "endReadingPhoto", maxCount: 1 },
+  ]),
+  asyncHandler(ctrl.createSubmission)
+);
 
 router.get("/submissions", requireAuth, requirePermission("vehicleManagement", "view"), asyncHandler(ctrl.listSubmissions));
 router.get("/daily-report", requireAuth, requirePermission("vehicleManagement", "view"), asyncHandler(ctrl.dailyReport));

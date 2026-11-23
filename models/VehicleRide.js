@@ -6,9 +6,12 @@ const mongoose = require("mongoose");
 const VehicleRideSchema = new mongoose.Schema(
   {
     vehicleName: { type: String, required: true, enum: ["TATA EV", "Honda City"] },
+    department: { type: String, required: true, enum: ["Sales", "CRM", "Planning", "Project", "Admin"] },
     date: { type: String, required: true }, // "YYYY-MM-DD"
     startReading: { type: Number, required: true },
+    startReadingPhotoUrl: { type: String, required: true },
     endReading: { type: Number, required: true },
+    endReadingPhotoUrl: { type: String, required: true },
     reason: { type: String, required: true, trim: true },
     personName: { type: String, required: true, trim: true },
   },

@@ -1,18 +1,38 @@
 const VehicleRide = require("../models/VehicleRide");
+const { fileToUrl } = require("../middleware/upload");
 
 const VEHICLES = ["TATA EV", "Honda City"];
+const DEPARTMENTS = ["Sales", "CRM", "Planning", "Project", "Admin"];
 
 exports.meta = async (req, res) => {
-  res.json({ vehicles: VEHICLES });
+  res.json({ vehicles: VEHICLES, departments: DEPARTMENTS });
 };
 
 exports.createSubmission = async (req, res) => {
-  const { vehicleName, date, startReading, endReading, reason, personName } = req.body;
-  if (!vehicleName || !date || startReading === undefined || endReading === undefined || !reason || !personName) {
-    return res.status(400).json({ message: "vehicleName, date, startReading, endReading, reason and personName are required" });
+  const { vehicleName, department, date, startReading, endReading, reason, personName } = req.body;
+  const startReadingPhoto = req.files?.startReadingPhoto?.[0];
+  const endReadingPhoto = req.files?.endReadingPhoto?.[0];
+  if (
+    !vehicleName ||
+    !department ||
+    !date ||
+    startReading === undefined ||
+    endReading === undefined ||
+    !reason ||
+    !personName ||
+    !startReadingPhoto ||
+    !endReadingPhoto
+  ) {
+    return res.status(400).json({
+      message:
+        "vehicleName, department, date, startReading, endReading, reason, personName, startReadingPhoto and endReadingPhoto are required",
+    });
   }
   if (!VEHICLES.includes(vehicleName)) {
     return res.status(400).json({ message: "Invalid vehicleName" });
+  }
+  if (!DEPARTMENTS.includes(department)) {
+    return res.status(400).json({ message: "Invalid department" });
   }
   const start = Number(startReading);
   const end = Number(endReading);
@@ -20,7 +40,17 @@ exports.createSubmission = async (req, res) => {
     return res.status(400).json({ message: "Ending Meter Reading must be greater than or equal to Start Meter Reading" });
   }
 
-  const ride = await VehicleRide.create({ vehicleName, date, startReading: start, endReading: end, reason, personName });
+  const ride = await VehicleRide.create({
+    vehicleName,
+    department,
+    date,
+    startReading: start,
+    startReadingPhotoUrl: fileToUrl(startReadingPhoto),
+    endReading: end,
+    endReadingPhotoUrl: fileToUrl(endReadingPhoto),
+    reason,
+    personName,
+  });
   res.status(201).json(ride);
 };
 
@@ -35,9 +65,12 @@ exports.listSubmissions = async (req, res) => {
     rides.map((r) => ({
       _id: r._id,
       vehicleName: r.vehicleName,
+      department: r.department,
       date: r.date,
       startReading: r.startReading,
+      startReadingPhotoUrl: r.startReadingPhotoUrl,
       endReading: r.endReading,
+      endReadingPhotoUrl: r.endReadingPhotoUrl,
       distance: r.endReading - r.startReading,
       reason: r.reason,
       personName: r.personName,
@@ -46,13 +79,18 @@ exports.listSubmissions = async (req, res) => {
   );
 };
 
+// Text fields only — the two meter-reading photos captured at submission
+// time aren't editable here (they stay as originally uploaded).
 exports.updateSubmission = async (req, res) => {
-  const { vehicleName, date, startReading, endReading, reason, personName } = req.body;
-  if (!vehicleName || !date || startReading === undefined || endReading === undefined || !reason || !personName) {
-    return res.status(400).json({ message: "vehicleName, date, startReading, endReading, reason and personName are required" });
+  const { vehicleName, department, date, startReading, endReading, reason, personName } = req.body;
+  if (!vehicleName || !department || !date || startReading === undefined || endReading === undefined || !reason || !personName) {
+    return res.status(400).json({ message: "vehicleName, department, date, startReading, endReading, reason and personName are required" });
   }
   if (!VEHICLES.includes(vehicleName)) {
     return res.status(400).json({ message: "Invalid vehicleName" });
+  }
+  if (!DEPARTMENTS.includes(department)) {
+    return res.status(400).json({ message: "Invalid department" });
   }
   const start = Number(startReading);
   const end = Number(endReading);
@@ -62,7 +100,7 @@ exports.updateSubmission = async (req, res) => {
 
   const ride = await VehicleRide.findByIdAndUpdate(
     req.params.id,
-    { vehicleName, date, startReading: start, endReading: end, reason, personName },
+    { vehicleName, department, date, startReading: start, endReading: end, reason, personName },
     { new: true }
   );
   if (!ride) return res.status(404).json({ message: "Ride not found" });
