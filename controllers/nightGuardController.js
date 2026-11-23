@@ -13,7 +13,7 @@ exports.meta = async (req, res) => {
   res.json({
     statusOptions: NightGuardDailyReport.STATUS_OPTIONS,
     timeSlots: NightGuardDailyReport.TIME_SLOTS,
-    sites: ["One Business Center", "Hyde Park", "Milestone", "GST", "Garden City", "Regal Garden", "Nature Park"],
+    sites: ["One Business Center", "Hyde Park", "Milestone", "GST", "Garden City", "Regal Garden", "Nature Park", "Mahalgaon", "Westgate"],
   });
 };
 
