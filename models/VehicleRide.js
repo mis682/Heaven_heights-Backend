@@ -9,6 +9,7 @@ const VehicleRideSchema = new mongoose.Schema(
     date: { type: String, required: true }, // "YYYY-MM-DD"
     startReading: { type: Number, required: true },
     endReading: { type: Number, required: true },
+    reason: { type: String, required: true, trim: true },
     personName: { type: String, required: true, trim: true },
   },
   { timestamps: true }
