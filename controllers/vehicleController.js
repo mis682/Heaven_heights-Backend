@@ -40,8 +40,38 @@ exports.listSubmissions = async (req, res) => {
       endReading: r.endReading,
       distance: r.endReading - r.startReading,
       personName: r.personName,
+      createdAt: r.createdAt,
     }))
   );
+};
+
+exports.updateSubmission = async (req, res) => {
+  const { vehicleName, date, startReading, endReading, personName } = req.body;
+  if (!vehicleName || !date || startReading === undefined || endReading === undefined || !personName) {
+    return res.status(400).json({ message: "vehicleName, date, startReading, endReading and personName are required" });
+  }
+  if (!VEHICLES.includes(vehicleName)) {
+    return res.status(400).json({ message: "Invalid vehicleName" });
+  }
+  const start = Number(startReading);
+  const end = Number(endReading);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+    return res.status(400).json({ message: "Ending Meter Reading must be greater than or equal to Start Meter Reading" });
+  }
+
+  const ride = await VehicleRide.findByIdAndUpdate(
+    req.params.id,
+    { vehicleName, date, startReading: start, endReading: end, personName },
+    { new: true }
+  );
+  if (!ride) return res.status(404).json({ message: "Ride not found" });
+  res.json(ride);
+};
+
+exports.deleteSubmission = async (req, res) => {
+  const ride = await VehicleRide.findByIdAndDelete(req.params.id);
+  if (!ride) return res.status(404).json({ message: "Ride not found" });
+  res.json({ message: "Ride deleted" });
 };
 
 // One row per vehicle+date, summing that day's individual ride distances —

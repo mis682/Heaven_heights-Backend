@@ -11,5 +11,7 @@ router.post("/", asyncHandler(ctrl.createSubmission));
 
 router.get("/submissions", requireAuth, requirePermission("vehicleManagement", "view"), asyncHandler(ctrl.listSubmissions));
 router.get("/daily-report", requireAuth, requirePermission("vehicleManagement", "view"), asyncHandler(ctrl.dailyReport));
+router.put("/:id", requireAuth, requirePermission("vehicleManagement", "edit"), asyncHandler(ctrl.updateSubmission));
+router.delete("/:id", requireAuth, requirePermission("vehicleManagement", "delete"), asyncHandler(ctrl.deleteSubmission));
 
 module.exports = router;
