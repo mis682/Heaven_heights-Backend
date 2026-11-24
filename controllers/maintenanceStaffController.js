@@ -23,12 +23,25 @@ async function normalizeAgainstExisting(field, value) {
   return match || cleaned;
 }
 
+// A filter query param can arrive as a single string (one selection) or an
+// array (multiple selections, from ThemedSelect's multi-select mode) — Express
+// parses repeated/bracketed query keys into an array automatically. Either
+// shape becomes a Mongo filter value here; an empty/missing one is left out
+// of the filter entirely rather than matching nothing.
+function toFilterValue(value) {
+  if (value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) return undefined;
+  return Array.isArray(value) ? { $in: value } : value;
+}
+
 exports.list = async (req, res) => {
   const { siteName, designation, companyName, search } = req.query;
   const filter = {};
-  if (siteName) filter.siteName = siteName;
-  if (designation) filter.designation = designation;
-  if (companyName) filter.companyName = companyName;
+  const siteFilter = toFilterValue(siteName);
+  if (siteFilter !== undefined) filter.siteName = siteFilter;
+  const designationFilter = toFilterValue(designation);
+  if (designationFilter !== undefined) filter.designation = designationFilter;
+  const companyFilter = toFilterValue(companyName);
+  if (companyFilter !== undefined) filter.companyName = companyFilter;
   if (search) {
     const re = new RegExp(search, "i");
     filter.$or = [{ name: re }, { employeeId: re }, { siteName: re }, { designation: re }, { companyName: re }];
@@ -48,8 +61,10 @@ exports.meta = async (req, res) => {
 exports.stats = async (req, res) => {
   const { siteName, companyName, search } = req.query;
   const filter = {};
-  if (siteName) filter.siteName = siteName;
-  if (companyName) filter.companyName = companyName;
+  const siteFilter = toFilterValue(siteName);
+  if (siteFilter !== undefined) filter.siteName = siteFilter;
+  const companyFilter = toFilterValue(companyName);
+  if (companyFilter !== undefined) filter.companyName = companyFilter;
   if (search) {
     const re = new RegExp(search, "i");
     filter.$or = [{ name: re }, { employeeId: re }, { siteName: re }, { designation: re }, { companyName: re }];
