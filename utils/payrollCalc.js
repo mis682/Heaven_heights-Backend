@@ -18,11 +18,11 @@ function daysInCalendarMonth(month, year) {
 // Overtime submodule's monthly day count.
 function computePayrollRow({ salary, petrol, basic, salaryDeduction, payableDays, overTime, daysInMonth }) {
   const totalDays = Math.round((payableDays + overTime) * 100) / 100;
-  // Rate and Gross are the same flat, full-month figures as Staff Profile's
-  // Salary & Statutory Details (computeSalaryBreakdown on the frontend) —
-  // not prorated by attendance. totalDays is still shown as its own column.
+  // Rate is a flat full-month figure (same as Staff Profile's Salary &
+  // Statutory Details) — but Gross is prorated by Total Payable Days
+  // (attendance + overtime), matching the user's own manual sheet.
   const rate = daysInMonth > 0 ? Math.round((salary + petrol) / daysInMonth) : 0;
-  const gross = daysInMonth * rate;
+  const gross = Math.round(totalDays * rate);
   const hra = gross - basic;
   const employeePf = Math.round(basic * PF_RATE);
   const employerPf = Math.round(basic * PF_RATE);
