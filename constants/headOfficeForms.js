@@ -123,6 +123,7 @@ const HEAD_OFFICE_FORMS = [
       "Huddle Room-2 Mirror",
       "Huddle Room-3 Mirror",
       "Huddle Room-4 Mirror",
+      "Kitchen Mirror",
     ].map((label) => photo(label)),
   },
   {
