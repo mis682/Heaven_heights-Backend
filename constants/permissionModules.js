@@ -21,6 +21,7 @@ const PERMISSION_MODULES = [
   { key: "sampleApartment", label: "Sample Apartment" },
   { key: "weeklyUpdate", label: "Weekly Update Other Projects" },
   { key: "hydePark", label: "Hyde Park" },
+  { key: "silverEstateOffice", label: "Silver Estate Office" },
   { key: "headOffice", label: "Head Office" },
   { key: "pmRegalGarden", label: "Regal Garden" },
   { key: "pmEdenGarden", label: "Eden Garden" },
