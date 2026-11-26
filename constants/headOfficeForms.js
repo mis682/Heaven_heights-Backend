@@ -155,7 +155,6 @@ const HEAD_OFFICE_FORMS = [
       "Workstation floor-1",
       "Workstation floor-2",
       "Bade Sir Cabin floor",
-      "Rahul Sir (Director Area) Cabin floor",
       "Monica Mam Cabin floor",
       "Workstation area (Bade Sir) floor",
     ].map((label) => photo(label)),
