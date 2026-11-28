@@ -7,7 +7,7 @@ const KeyHandoverSchema = new mongoose.Schema(
   {
     vehicle: { type: String, required: true, enum: ["Car", "EV"] },
     date: { type: String, required: true },
-    driverName: { type: String, required: true, enum: ["Neeraj", "Manoj", "Dharmendra"] },
+    driverName: { type: String, required: true, trim: true },
     inTime: { type: String, required: true },
     outTime: { type: String, default: "" },
   },

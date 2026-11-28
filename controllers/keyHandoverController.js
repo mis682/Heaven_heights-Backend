@@ -13,7 +13,6 @@ exports.create = async (req, res) => {
     return res.status(400).json({ message: "vehicle, date, driverName and inTime are required" });
   }
   if (!VEHICLES.includes(vehicle)) return res.status(400).json({ message: "Invalid vehicle" });
-  if (!DRIVERS.includes(driverName)) return res.status(400).json({ message: "Invalid driverName" });
 
   const entry = await KeyHandover.create({ vehicle, date, driverName, inTime });
   res.status(201).json(entry);
