@@ -1,5 +1,6 @@
 const MaintenanceAuditSubmission = require("../models/MaintenanceAuditSubmission");
 const { fileToUrl } = require("../middleware/upload");
+const { notifyWebhook } = require("../utils/webhook");
 
 const PROJECTS = ["Garden City", "Regal Garden", "Milestone", "Neo Meridian", "OBC", "Nature Park", "Regal Central"];
 
@@ -27,6 +28,21 @@ exports.createSubmission = async (req, res) => {
     image1Url: image1 ? fileToUrl(image1) : "",
     image2Url: image2 ? fileToUrl(image2) : "",
   });
+
+  notifyWebhook(
+    {
+      type: "maintenanceAudit",
+      clientName,
+      unitNo,
+      project,
+      remarks,
+      image1Url: submission.image1Url,
+      image2Url: submission.image2Url,
+      submittedAt: submission.submittedAt,
+      message: `🛠️ Maintenance Audit — *${clientName}* (Unit ${unitNo}, ${project})\nRemarks: ${remarks}`,
+    },
+    "N8N_MAINTENANCE_AUDIT_WEBHOOK_URL"
+  );
 
   res.status(201).json(submission);
 };
